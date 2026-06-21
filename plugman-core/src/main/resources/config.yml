@@ -15,5 +15,6 @@ auto-reload:
   enabled: false
   check-every-seconds: 10
 showPaperWarning: true
+paperReloadDebug: false
 # Do not change this value
-version: 3
+version: 4

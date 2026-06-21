@@ -31,20 +31,28 @@ import bukkit.com.rylinaux.plugman.pluginmanager.BukkitPluginManager;
 import core.com.rylinaux.plugman.config.PlugManConfigurationManager;
 import core.com.rylinaux.plugman.plugins.PluginManager;
 import core.com.rylinaux.plugman.util.reflection.ClassAccessor;
-import lombok.RequiredArgsConstructor;
 import org.bukkit.Bukkit;
 import paper.com.rylinaux.plugman.pluginmanager.ModernPaperPluginManager;
 import paper.com.rylinaux.plugman.pluginmanager.PaperPluginManager;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Handles paper-specific initialization logic for PlugMan.
  *
  * @author rylinaux
  */
-@RequiredArgsConstructor
 public class PaperInitializer {
 
     private final PlugManBukkit plugin;
+    private static final Pattern VERSION_NUMBER_PATTERN = Pattern.compile("\\d+");
+
+    public PaperInitializer(PlugManBukkit plugin) {
+        this.plugin = plugin;
+    }
 
     /**
      * Initialize the plugin manager based on server type, returning paper plugin manager if on paper
@@ -55,9 +63,31 @@ public class PaperInitializer {
             return bukkitPluginManager;
         }
 
-        return obtainVersion() >= 12005 ?
-            new ModernPaperPluginManager() :
-            new PaperPluginManager();
+        var paperVersion = parsePaperVersion(Bukkit.getBukkitVersion());
+
+        return paperVersion >= 2005?
+                new ModernPaperPluginManager(bukkitPluginManager) :
+                new PaperPluginManager(bukkitPluginManager);
+    }
+
+    private int parsePaperVersion(String bukkitVersion) {
+        List<Integer> numbers = new ArrayList<>();
+        Matcher matcher = VERSION_NUMBER_PATTERN.matcher(bukkitVersion == null ? "" : bukkitVersion);
+        while (matcher.find()) {
+            numbers.add(Integer.parseInt(matcher.group()));
+        }
+        if (numbers.isEmpty()) {
+            plugin.getLogger().warning("Could not parse Paper version from '" + bukkitVersion + "'. Falling back to legacy plugin manager.");
+            return 0;
+        }
+        if (numbers.get(0) == 1) {
+            int minor = numbers.size() > 1 ? numbers.get(1) : 0;
+            int patch = numbers.size() > 2 ? numbers.get(2) : 0;
+            return minor * 100 + patch;
+        }
+        int major = numbers.get(0);
+        int minor = numbers.size() > 1 ? numbers.get(1) : 0;
+        return major * 100 + minor;
     }
 
     /**
@@ -71,7 +101,7 @@ public class PaperInitializer {
 
         plugin.getLogger().warning("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
         plugin.getLogger().warning("It seems like you're running on paper.");
-        plugin.getLogger().warning("PlugManX cannot interact with paper-plugins, yet.");
+        plugin.getLogger().warning("PlugManX Paper plugin reload support is experimental.");
         plugin.getLogger().warning("Also, if you encounter any issues, please join my discord: https://discord.gg/GxEFhVY6ff");
         plugin.getLogger().warning("Or create an issue on GitHub: https://github.com/Test-Account666/PlugMan");
         plugin.getLogger().warning("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -79,18 +109,4 @@ public class PaperInitializer {
         plugin.getLogger().info("You can disable this warning by setting 'showPaperWarning' to false in the config.yml");
     }
 
-    /**
-     * Returns the Minecraft version integer id. 1.20 -> 12000, 1.21.4 -> 12104, 26.1 -> 260100.
-     */
-    private int obtainVersion() {
-        try {
-            String[] versions = Bukkit.getMinecraftVersion().split("\\.");
-            return Integer.parseInt(versions[0]) * 10000
-                + (versions.length > 1 ? Integer.parseInt(versions[1]) : 0) * 100
-                + (versions.length > 2 ? Integer.parseInt(versions[2]) : 0);
-        } catch (Exception ignored) {
-            plugin.getLogger().warning("Failed to obtain server version!");
-        }
-        return -1;
-    }
 }

@@ -102,7 +102,7 @@ public class ReloadCommand extends AbstractCommand {
 
     private void reloadAllPlugins(CommandSender sender, String label) {
         var plugins = getPluginManager().getPlugins().stream().filter(plugin ->
-                plugin != null && !getPluginManager().isIgnored(plugin) && !getPluginManager().isPaperPlugin(plugin)).toList();
+                plugin != null && !getPluginManager().isIgnored(plugin)).toList();
 
         var failedPlugins = new ArrayList<String>();
 

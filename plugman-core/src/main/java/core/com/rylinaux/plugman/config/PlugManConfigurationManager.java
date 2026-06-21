@@ -17,7 +17,7 @@ import java.util.List;
  */
 @RequiredArgsConstructor
 public class PlugManConfigurationManager {
-    public static final int CURRENT_CONFIG_VERSION = 3;
+    public static final int CURRENT_CONFIG_VERSION = 4;
 
     private final YamlConfigurationProvider configProvider;
     private final PluginLogger logger;
@@ -120,8 +120,21 @@ public class PlugManConfigurationManager {
                 continue;
             }
 
-            if (configVersion == 2) migrateToVersion3();
+            if (configVersion == 2) {
+                migrateToVersion3();
+                continue;
+            }
+
+            if (configVersion == 3) migrateToVersion4();
         }
+    }
+
+    private void migrateToVersion4() {
+        plugManConfig.setVersion(4);
+        plugManConfig.setPaperReloadDebug(false);
+        saveJacksonConfiguration();
+
+        logger.info("Migrated config to version 4, you can now enable Paper reload debug logs with 'paperReloadDebug: true'.");
     }
 
     private void migrateToVersion3() {

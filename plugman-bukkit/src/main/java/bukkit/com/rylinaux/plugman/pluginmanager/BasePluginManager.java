@@ -48,8 +48,11 @@ import java.net.URLClassLoader;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
+import java.util.jar.JarFile;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * Base class containing common functionality shared across plugin managers.
@@ -91,9 +94,8 @@ public abstract class BasePluginManager implements PluginManager {
         if (!(classLoader instanceof URLClassLoader)) return;
 
         try {
-            FieldAccessor.setValue("plugin", classLoader, null);
-
-            FieldAccessor.setValue("pluginInit", classLoader, null);
+            clearClassLoaderField(classLoader, "plugin");
+            clearClassLoaderField(classLoader, "pluginInit");
         } catch (SecurityException | IllegalArgumentException | IllegalAccessException exception) {
             Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Error removing class load from plugin", exception);
         }
@@ -103,6 +105,11 @@ public abstract class BasePluginManager implements PluginManager {
         } catch (IOException exception) {
             Logger.getLogger(getClass().getName()).log(Level.SEVERE, "Error closing plugin classloader", exception);
         }
+    }
+
+    private void clearClassLoaderField(ClassLoader classLoader, String fieldName) throws IllegalAccessException {
+        if (FieldAccessor.getField(classLoader.getClass(), fieldName) == null) return;
+        FieldAccessor.setValue(fieldName, classLoader, null);
     }
 
     /**
@@ -121,10 +128,29 @@ public abstract class BasePluginManager implements PluginManager {
                 var desc = PlugManBukkit.getInstance().getPluginLoader().getPluginDescription(f);
                 if (desc.getName().equalsIgnoreCase(name)) return f;
             } catch (Exception exception) {
+                var paperPluginName = getPaperPluginName(f);
+                if (paperPluginName != null && paperPluginName.equalsIgnoreCase(name)) return f;
                 PlugManBukkit.getInstance().getLogger().warning("Failed to read descriptor for " + f.getName() + " - skipping");
             }
 
         return null;
+    }
+
+    private String getPaperPluginName(File file) {
+        try (var jar = new JarFile(file)) {
+            var entry = jar.getJarEntry("paper-plugin.yml");
+            if (entry == null) return null;
+
+            try (var input = jar.getInputStream(entry)) {
+                var data = new Yaml().load(input);
+                if (!(data instanceof Map<?, ?> map)) return null;
+
+                var name = map.get("name");
+                return name == null ? null : name.toString();
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     /**

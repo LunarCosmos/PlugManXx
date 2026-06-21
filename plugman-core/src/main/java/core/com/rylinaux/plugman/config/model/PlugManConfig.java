@@ -18,7 +18,7 @@ public class PlugManConfig {
      * Configuration version for migration purposes
      */
     @JsonProperty("version")
-    private int version = 3;
+    private int version = 4;
 
     /**
      * Auto-load configuration settings
@@ -55,6 +55,12 @@ public class PlugManConfig {
      */
     @JsonProperty("showPaperWarning")
     private boolean showPaperWarning = true;
+
+    /**
+     * Whether to log verbose Paper runtime reload debug output
+     */
+    @JsonProperty("paperReloadDebug")
+    private boolean paperReloadDebug = false;
 
     @Data
     public static class GenericLoadConfig {
