@@ -31,6 +31,7 @@ import bukkit.com.rylinaux.plugman.pluginmanager.BukkitPluginManager;
 import core.com.rylinaux.plugman.config.PlugManConfigurationManager;
 import core.com.rylinaux.plugman.plugins.PluginManager;
 import core.com.rylinaux.plugman.util.reflection.ClassAccessor;
+import lombok.RequiredArgsConstructor;
 import org.bukkit.Bukkit;
 import paper.com.rylinaux.plugman.pluginmanager.ModernPaperPluginManager;
 import paper.com.rylinaux.plugman.pluginmanager.PaperPluginManager;
@@ -45,14 +46,11 @@ import java.util.regex.Pattern;
  *
  * @author rylinaux
  */
+@RequiredArgsConstructor
 public class PaperInitializer {
 
     private final PlugManBukkit plugin;
     private static final Pattern VERSION_NUMBER_PATTERN = Pattern.compile("\\d+");
-
-    public PaperInitializer(PlugManBukkit plugin) {
-        this.plugin = plugin;
-    }
 
     /**
      * Initialize the plugin manager based on server type, returning paper plugin manager if on paper

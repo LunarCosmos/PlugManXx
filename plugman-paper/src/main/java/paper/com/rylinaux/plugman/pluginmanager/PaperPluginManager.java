@@ -50,11 +50,17 @@ import org.yaml.snakeyaml.error.YAMLException;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.jar.JarFile;
@@ -528,7 +534,7 @@ public class PaperPluginManager extends BasePluginManager {
         if (data.commandMap() == null) return;
 
         var modifiedKnownCommands = data.commands();
-        var pluginCommands = getCommandsFromPlugin(plugin);
+        var pluginCommands = getPaperCommandsFromPlugin(plugin, modifiedKnownCommands);
 
         pluginCommands.forEach(entry -> {
             var command = entry.getValue().<Command>getHandle();
@@ -538,6 +544,81 @@ public class PaperPluginManager extends BasePluginManager {
         });
 
         syncCommands();
+    }
+
+    private List<Map.Entry<String, core.com.rylinaux.plugman.plugins.Command>> getPaperCommandsFromPlugin(
+            Plugin plugin,
+            core.com.rylinaux.plugman.plugins.CommandMapWrap<Command> commands) {
+        var pluginHandles = collectPaperCommandHandles(plugin, commands);
+
+        return commands.asMap().entrySet().stream()
+                .filter(entry -> pluginHandles.contains(entry.getValue().getHandle()))
+                .toList();
+    }
+
+    private Set<Command> collectPaperCommandHandles(Plugin plugin, core.com.rylinaux.plugman.plugins.CommandMapWrap<Command> commands) {
+        var pluginHandles = new HashSet<Command>();
+        var pluginPrefix = plugin.getName().toLowerCase() + ":";
+
+        for (var entry : commands.asMap().entrySet()) {
+            var command = entry.getValue().<Command>getHandle();
+            if (entry.getKey().toLowerCase().startsWith(pluginPrefix) || commandBelongsToPlugin(command, plugin)) {
+                pluginHandles.add(command);
+            }
+        }
+
+        return pluginHandles;
+    }
+
+    private boolean commandBelongsToPlugin(Command command, Plugin plugin) {
+        var pluginHandle = plugin.<org.bukkit.plugin.Plugin>getHandle();
+        var pluginLoader = pluginHandle.getClass().getClassLoader();
+
+        return command.getClass().getClassLoader() == pluginLoader ||
+                objectReferencesPlugin(command, pluginHandle, pluginLoader, Collections.newSetFromMap(new IdentityHashMap<>()));
+    }
+
+    private boolean objectReferencesPlugin(Object value, org.bukkit.plugin.Plugin plugin, ClassLoader pluginLoader, Set<Object> visited) {
+        if (value == null || !visited.add(value)) return false;
+        if (value == plugin) return true;
+
+        var valueClass = value.getClass();
+        if (valueClass.getClassLoader() == pluginLoader) return true;
+        if (isSimpleReflectionValue(valueClass)) return false;
+
+        for (var field : getAllFields(valueClass)) {
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
+
+            try {
+                field.setAccessible(true);
+                if (objectReferencesPlugin(field.get(value), plugin, pluginLoader, visited)) return true;
+            } catch (LinkageError | RuntimeException | IllegalAccessException ignored) {
+                // Some plugin command wrappers reference optional dependencies that may not be installed.
+            }
+        }
+
+        return false;
+    }
+
+    private boolean isSimpleReflectionValue(Class<?> valueClass) {
+        return valueClass.isPrimitive()
+                || valueClass.isEnum()
+                || valueClass.getName().startsWith("java.lang.")
+                || valueClass.getName().startsWith("java.util.");
+    }
+
+    private List<Field> getAllFields(Class<?> clazz) {
+        var fields = new ArrayList<Field>();
+        var current = clazz;
+        while (current != null) {
+            try {
+                fields.addAll(List.of(current.getDeclaredFields()));
+            } catch (LinkageError | RuntimeException ignored) {
+                return fields;
+            }
+            current = current.getSuperclass();
+        }
+        return fields;
     }
 
     private void cleanupPaperPluginManager(Plugin plugin) {
