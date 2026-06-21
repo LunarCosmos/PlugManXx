@@ -122,17 +122,33 @@ public abstract class BasePluginManager implements PluginManager {
         var pluginFile = new File(pluginDir, name + ".jar");
         if (pluginFile.isFile()) return pluginFile;
 
-        // Search for plugin by name in all jar files
-        for (var f : pluginDir.listFiles())
-            if (f.getName().endsWith(".jar")) try {
-                var desc = PlugManBukkit.getInstance().getPluginLoader().getPluginDescription(f);
-                if (desc.getName().equalsIgnoreCase(name)) return f;
-            } catch (Exception exception) {
-                var paperPluginName = getPaperPluginName(f);
-                if (paperPluginName != null && paperPluginName.equalsIgnoreCase(name)) return f;
-                PlugManBukkit.getInstance().getLogger().warning("Failed to read descriptor for " + f.getName() + " - skipping");
-            }
+        var files = pluginDir.listFiles();
+        if (files == null) return null;
 
+        for (var file : files) {
+            var found = findPluginFileFromJar(file, name);
+            if (found != null) return found;
+        }
+
+        return null;
+    }
+
+    private File findPluginFileFromJar(File file, String name) {
+        if (!file.getName().endsWith(".jar")) return null;
+
+        try {
+            var desc = PlugManBukkit.getInstance().getPluginLoader().getPluginDescription(file);
+            return desc.getName().equalsIgnoreCase(name) ? file : null;
+        } catch (Exception exception) {
+            return findPaperPluginFileFromJar(file, name);
+        }
+    }
+
+    private File findPaperPluginFileFromJar(File file, String name) {
+        var paperPluginName = getPaperPluginName(file);
+        if (paperPluginName != null && paperPluginName.equalsIgnoreCase(name)) return file;
+
+        PlugManBukkit.getInstance().getLogger().warning("Failed to read descriptor for " + file.getName() + " - skipping");
         return null;
     }
 

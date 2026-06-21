@@ -66,6 +66,10 @@ import java.util.logging.Level;
  * @author rylinaux
  */
 public class PaperPluginManager extends BasePluginManager {
+    private static final String PREPARE_CONTEXT_METHOD = "prepareContext";
+    private static final String PREPARE_CONTEXT_LOG_PREFIX = "prepareContext method=";
+    private static final String REGISTER_PROVIDERS_METHOD = "registerProviders";
+
     @Delegate
     private final BukkitPluginManager _bukkitPluginManager;
 
@@ -219,7 +223,7 @@ public class PaperPluginManager extends BasePluginManager {
         var debugStep = "start";
         try {
             debugPaperReload("start provider load for " + pluginFile.getPath());
-            var pluginName = getPaperPluginName(pluginFile);
+            var pluginName = readPaperPluginName(pluginFile);
             debugStep = "read paper-plugin.yml";
             debugPaperReload("paper-plugin.yml name=" + pluginName);
             if (pluginName == null) return null;
@@ -351,35 +355,35 @@ public class PaperPluginManager extends BasePluginManager {
         return clazz == null ? "null" : clazz.getName();
     }
 
-    private Path prepareProviderContext(Class<?> providerSourceClass, Object providerSource, File pluginFile) throws Exception {
-        var pathMethod = findSingleArgMethod(providerSourceClass, "prepareContext", Path.class);
+    private Path prepareProviderContext(Class<?> providerSourceClass, Object providerSource, File pluginFile) throws ReflectiveOperationException {
+        var pathMethod = findSingleArgMethod(providerSourceClass, PREPARE_CONTEXT_METHOD, Path.class);
         if (pathMethod != null) {
-            debugPaperReload("prepareContext method=" + methodSignature(pathMethod) + ", arg=Path");
+            debugPaperReload(PREPARE_CONTEXT_LOG_PREFIX + methodSignature(pathMethod) + ", arg=Path");
             return (Path) pathMethod.invoke(providerSource, pluginFile.toPath());
         }
 
-        var objectMethod = findExactSingleArgMethod(providerSourceClass, "prepareContext", Object.class);
+        var objectMethod = findExactSingleArgMethod(providerSourceClass, PREPARE_CONTEXT_METHOD, Object.class);
         if (objectMethod != null) {
-            debugPaperReload("prepareContext method=" + methodSignature(objectMethod) + ", arg=Path/Object");
+            debugPaperReload(PREPARE_CONTEXT_LOG_PREFIX + methodSignature(objectMethod) + ", arg=Path/Object");
             return (Path) objectMethod.invoke(providerSource, pluginFile.toPath());
         }
 
-        var stringMethod = findExactSingleArgMethod(providerSourceClass, "prepareContext", String.class);
+        var stringMethod = findExactSingleArgMethod(providerSourceClass, PREPARE_CONTEXT_METHOD, String.class);
         if (stringMethod != null) {
-            debugPaperReload("prepareContext method=" + methodSignature(stringMethod) + ", arg=String");
+            debugPaperReload(PREPARE_CONTEXT_LOG_PREFIX + methodSignature(stringMethod) + ", arg=String");
             return (Path) stringMethod.invoke(providerSource, pluginFile.getPath());
         }
 
-        debugPaperReload("prepareContext methods available=" + methodSignatures(providerSourceClass, "prepareContext"));
+        debugPaperReload("prepareContext methods available=" + methodSignatures(providerSourceClass, PREPARE_CONTEXT_METHOD));
         throw new IllegalArgumentException("No compatible prepareContext method found in " + providerSourceClass.getName());
     }
 
-    private void registerProviders(Class<?> providerSourceClass, Object providerSource, Object handler, Path preparedPath) throws Exception {
+    private void registerProviders(Class<?> providerSourceClass, Object providerSource, Object handler, Path preparedPath) throws ReflectiveOperationException {
         var handlerType = ClassAccessor.getClass("io.papermc.paper.plugin.entrypoint.EntrypointHandler");
         Method bestMethod = null;
 
         for (var method : getAllMethods(providerSourceClass)) {
-            if (!method.getName().equals("registerProviders")) continue;
+            if (!method.getName().equals(REGISTER_PROVIDERS_METHOD)) continue;
             var parameterTypes = method.getParameterTypes();
             if (parameterTypes.length != 2) continue;
             if (!parameterTypes[0].isAssignableFrom(handlerType)) continue;
@@ -389,7 +393,7 @@ public class PaperPluginManager extends BasePluginManager {
         }
 
         if (bestMethod == null) {
-            debugPaperReload("registerProviders methods available=" + methodSignatures(providerSourceClass, "registerProviders"));
+            debugPaperReload("registerProviders methods available=" + methodSignatures(providerSourceClass, REGISTER_PROVIDERS_METHOD));
             throw new IllegalArgumentException("No compatible registerProviders method found in " + providerSourceClass.getName());
         }
 
@@ -445,7 +449,7 @@ public class PaperPluginManager extends BasePluginManager {
                 java.util.Arrays.stream(method.getParameterTypes()).map(Class::getName).collect(java.util.stream.Collectors.joining(", ")) + ")";
     }
 
-    private String getPaperPluginName(File file) {
+    private String readPaperPluginName(File file) {
         try (var jar = new JarFile(file)) {
             var entry = jar.getJarEntry("paper-plugin.yml");
             if (entry == null) return null;
@@ -462,13 +466,13 @@ public class PaperPluginManager extends BasePluginManager {
         }
     }
 
-    private Object newInstance(Class<?> clazz, Class<?>[] parameterTypes, Object... args) throws Exception {
+    private Object newInstance(Class<?> clazz, Class<?>[] parameterTypes, Object... args) throws ReflectiveOperationException {
         Constructor<?> constructor = clazz.getDeclaredConstructor(parameterTypes);
         constructor.setAccessible(true);
         return constructor.newInstance(args);
     }
 
-    private Object newInstance(Class<?> clazz) throws Exception {
+    private Object newInstance(Class<?> clazz) throws ReflectiveOperationException {
         Constructor<?> constructor = clazz.getDeclaredConstructor();
         constructor.setAccessible(true);
         return constructor.newInstance();
