@@ -12,7 +12,9 @@ public final class PluginResult {
     private final Object[] messageArgs;
 
     public PluginResult(boolean success, String messageId) {
-        this(success, messageId, (Object[]) new Object[0]);
+        this.success = success;
+        this.messageId = messageId;
+        this.messageArgs = new Object[0];
     }
 
     public PluginResult(boolean success, String messageId, Object... messageArgs) {
