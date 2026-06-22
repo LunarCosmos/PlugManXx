@@ -136,7 +136,7 @@ public class ReloadCommand extends AbstractCommand {
 
         result = getPluginManager().load(target);
         if (!result.success()) {
-            sender.sendMessage(result.messageId(), target.getName());
+            sender.sendMessage(result.messageId(), result.messageArgs().length == 0 ? new Object[]{target.getName()} : result.messageArgs());
             return false;
         }
 

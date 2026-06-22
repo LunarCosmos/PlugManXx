@@ -30,7 +30,8 @@ enable:
   all: '&9All plugins have been enabled.'
   already-enabled: '&c{0} is already enabled.'
   enabled: '&9{0} has been enabled.'
-error:
+  failed: '&c{0} could not be enabled. Check the server log for the plugin error.'
+  error:
   ignored: '&cPlugMan is configured to ignore that plugin.'
   invalid-plugin: '&cThat is not a valid plugin.'
   no-permission: '&cYou do not have permission to do this.'
@@ -71,6 +72,7 @@ load:
   invalid-description: '&cThat plugin has an invalid description.'
   invalid-plugin: '&cThat file is not a valid plugin.'
   loaded: '&9{0} has been loaded and enabled.'
+  missing-dependencies: '&cCould not load {0}. Missing required dependencies: {1}'
   plugin-dir: '&cPlugin directory not found.'
 lookup:
   found: '&9/{0} is registered to {1}.'
@@ -81,6 +83,7 @@ reload:
   reloaded: '&9{0} has been reloaded.'
 restart:
   all: '&9All plugins have been restarted.'
+  all-failed: '&cSome plugins failed to restart: {0}'
   restarted: '&9{0} has been restarted.'
 unload:
   failed: '&cFailed to unload {0}.'

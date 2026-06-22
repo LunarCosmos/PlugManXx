@@ -28,6 +28,7 @@ package bukkit.com.rylinaux.plugman.pluginmanager;
 
 import bukkit.com.rylinaux.plugman.PlugManBukkit;
 import bukkit.com.rylinaux.plugman.api.PlugManAPI;
+import core.com.rylinaux.plugman.PluginResult;
 import core.com.rylinaux.plugman.config.PlugManConfigurationManager;
 import core.com.rylinaux.plugman.plugins.Command;
 import core.com.rylinaux.plugman.plugins.CommandMapWrap;
@@ -45,6 +46,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
@@ -58,6 +60,7 @@ import org.yaml.snakeyaml.Yaml;
  * Base class containing common functionality shared across plugin managers.
  */
 public abstract class BasePluginManager implements PluginManager {
+    private static final String PAPER_PLUGIN_YML = "paper-plugin.yml";
 
     /**
      * Handles gentle unload logic common to all plugin managers.
@@ -136,25 +139,56 @@ public abstract class BasePluginManager implements PluginManager {
     private File findPluginFileFromJar(File file, String name) {
         if (!file.getName().endsWith(".jar")) return null;
 
-        try {
-            var desc = PlugManBukkit.getInstance().getPluginLoader().getPluginDescription(file);
-            return desc.getName().equalsIgnoreCase(name) ? file : null;
-        } catch (Exception exception) {
-            return findPaperPluginFileFromJar(file, name);
-        }
-    }
-
-    private File findPaperPluginFileFromJar(File file, String name) {
-        var paperPluginName = getPaperPluginName(file);
-        if (paperPluginName != null && paperPluginName.equalsIgnoreCase(name)) return file;
+        var pluginName = getPluginName(file);
+        if (pluginName != null && pluginName.equalsIgnoreCase(name)) return file;
+        if (pluginName != null) return null;
 
         PlugManBukkit.getInstance().getLogger().warning("Failed to read descriptor for " + file.getName() + " - skipping");
         return null;
     }
 
+    protected String getPluginName(File file) {
+        var pluginName = getBukkitPluginName(file);
+        return pluginName != null ? pluginName : getPaperPluginName(file);
+    }
+
+    protected PluginLoadPreflight preflightPluginLoad(String name) {
+        var pluginDir = new File("plugins");
+        if (!pluginDir.isDirectory()) return PluginLoadPreflight.failed(new PluginResult(false, "load.plugin-dir"));
+
+        var pluginFile = findPluginFile(name);
+        if (pluginFile == null || !pluginFile.isFile()) return PluginLoadPreflight.failed(new PluginResult(false, "load.cannot-find"));
+
+        var descriptor = readPluginDescriptor(pluginFile);
+        if (descriptor == null) return PluginLoadPreflight.failed(new PluginResult(false, "load.invalid-plugin", pluginFile.getName()));
+        if (descriptor.name() == null || descriptor.name().isBlank())
+            return PluginLoadPreflight.failed(new PluginResult(false, "load.invalid-description", pluginFile.getName()));
+
+        var loadedPlugin = getPluginByName(descriptor.name());
+        if (loadedPlugin != null) return PluginLoadPreflight.failed(new PluginResult(false, "load.already-loaded", loadedPlugin.getName()));
+
+        var missingDependencies = descriptor.requiredDependencies().stream()
+                .filter(dependency -> getPluginByName(dependency) == null)
+                .toList();
+        if (!missingDependencies.isEmpty()) {
+            return PluginLoadPreflight.failed(new PluginResult(false, "load.missing-dependencies",
+                    descriptor.name(), String.join(", ", missingDependencies)));
+        }
+
+        return new PluginLoadPreflight(pluginFile, descriptor, new PluginResult(true, "validation.success"));
+    }
+
+    private String getBukkitPluginName(File file) {
+        try {
+            return PlugManBukkit.getInstance().getPluginLoader().getPluginDescription(file).getName();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     private String getPaperPluginName(File file) {
         try (var jar = new JarFile(file)) {
-            var entry = jar.getJarEntry("paper-plugin.yml");
+            var entry = jar.getJarEntry(PAPER_PLUGIN_YML);
             if (entry == null) return null;
 
             try (var input = jar.getInputStream(entry)) {
@@ -167,6 +201,69 @@ public abstract class BasePluginManager implements PluginManager {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private PluginDescriptor readPluginDescriptor(File file) {
+        var bukkitDescriptor = readBukkitPluginDescriptor(file);
+        return bukkitDescriptor != null ? bukkitDescriptor : readPaperPluginDescriptor(file);
+    }
+
+    private PluginDescriptor readBukkitPluginDescriptor(File file) {
+        try {
+            var description = PlugManBukkit.getInstance().getPluginLoader().getPluginDescription(file);
+            return new PluginDescriptor(description.getName(), false, new ArrayList<>(description.getDepend()));
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private PluginDescriptor readPaperPluginDescriptor(File file) {
+        try (var jar = new JarFile(file)) {
+            var entry = jar.getJarEntry(PAPER_PLUGIN_YML);
+            if (entry == null) return null;
+
+            try (var input = jar.getInputStream(entry)) {
+                var data = new Yaml().load(input);
+                if (!(data instanceof Map<?, ?> map)) return null;
+
+                var name = map.get("name");
+                var requiredDependencies = new ArrayList<String>();
+                addListValues(requiredDependencies, map.get("depend"));
+                addRequiredPaperDependencies(requiredDependencies, map.get("dependencies"));
+
+                return new PluginDescriptor(name == null ? null : name.toString(), true, requiredDependencies);
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void addListValues(List<String> target, Object value) {
+        if (!(value instanceof List<?> list)) return;
+
+        list.stream()
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .filter(dependency -> !dependency.isBlank())
+                .forEach(target::add);
+    }
+
+    private void addRequiredPaperDependencies(List<String> target, Object value) {
+        if (!(value instanceof Map<?, ?> dependencies)) return;
+        var serverDependencies = dependencies.get("server");
+        if (!(serverDependencies instanceof Map<?, ?> serverDependencyMap)) return;
+
+        for (var entry : serverDependencyMap.entrySet()) {
+            if (!(entry.getKey() instanceof String dependencyName) || dependencyName.isBlank()) continue;
+            if (!isRequiredPaperDependency(entry.getValue())) continue;
+            target.add(dependencyName);
+        }
+    }
+
+    private boolean isRequiredPaperDependency(Object value) {
+        if (!(value instanceof Map<?, ?> dependencySettings)) return true;
+        var required = dependencySettings.get("required");
+        return !(required instanceof Boolean booleanValue) || booleanValue;
     }
 
     /**
@@ -215,5 +312,14 @@ public abstract class BasePluginManager implements PluginManager {
                                    Map<String, org.bukkit.plugin.Plugin> names, CommandMapWrap<org.bukkit.command.Command> commands,
                                    Map<Event, SortedSet<RegisteredListener>> listeners,
                                    boolean reloadListeners) {
+    }
+
+    protected record PluginLoadPreflight(File pluginFile, PluginDescriptor descriptor, PluginResult result) {
+        private static PluginLoadPreflight failed(PluginResult result) {
+            return new PluginLoadPreflight(null, null, result);
+        }
+    }
+
+    protected record PluginDescriptor(String name, boolean paperPlugin, List<String> requiredDependencies) {
     }
 }

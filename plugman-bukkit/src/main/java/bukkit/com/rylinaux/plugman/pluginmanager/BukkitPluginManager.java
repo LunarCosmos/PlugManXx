@@ -94,6 +94,7 @@ public class BukkitPluginManager extends BasePluginManager {
         if (plugin.isEnabled()) return new PluginResult(false, "enable.already-enabled");
         var bukkitPlugin = plugin.<org.bukkit.plugin.Plugin>getHandle();
         Bukkit.getPluginManager().enablePlugin(bukkitPlugin);
+        if (!bukkitPlugin.isEnabled()) return new PluginResult(false, "enable.failed", plugin.getName());
         return new PluginResult(true, "enable.enabled");
     }
 
@@ -352,14 +353,14 @@ public class BukkitPluginManager extends BasePluginManager {
      */
     @Override
     public PluginResult load(String name) {
-        var pluginFile = findPluginFile(name);
-        if (pluginFile == null) return new PluginResult(false, "load.cannot-find");
+        var preflight = preflightPluginLoad(name);
+        if (!preflight.result().success()) return preflight.result();
 
-        var target = loadAndEnablePlugin(pluginFile, false);
-        if (target == null) return new PluginResult(false, "load.invalid-plugin");
+        var target = loadAndEnablePlugin(preflight.pluginFile(), false);
+        if (target == null) return new PluginResult(false, "load.invalid-plugin", preflight.descriptor().name());
 
         scheduleCommandLoading();
-        PlugManBukkit.getInstance().getFilePluginMap().put(pluginFile.getName(), target.getName());
+        PlugManBukkit.getInstance().getFilePluginMap().put(preflight.pluginFile().getName(), target.getName());
 
         return new PluginResult(true, "load.loaded");
     }

@@ -37,6 +37,7 @@ import lombok.SneakyThrows;
 import lombok.experimental.Delegate;
 import org.bukkit.plugin.EventExecutor;
 import org.bukkit.scheduler.BukkitRunnable;
+import paper.com.rylinaux.plugman.util.PaperReflectionNames;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -76,7 +77,7 @@ public class ModernPaperPluginManager extends PaperPluginManager {
 
     @SneakyThrows
     private Object getInstanceManager() {
-        var paper = ClassAccessor.getClass("io.papermc.paper.plugin.manager.PaperPluginManagerImpl");
+        var paper = ClassAccessor.getClass(PaperReflectionNames.PAPER_PLUGIN_MANAGER);
         var paperPluginManagerImpl = MethodAccessor.invoke(paper, "getInstance", null);
 
         return FieldAccessor.getValue(paperPluginManagerImpl.getClass(), "instanceManager", paperPluginManagerImpl);
@@ -134,12 +135,12 @@ public class ModernPaperPluginManager extends PaperPluginManager {
 
     private Object getPluginStorage() {
         try {
-            var handlerClass = ClassAccessor.getClass("io.papermc.paper.plugin.entrypoint.LaunchEntryPointHandler");
-            var entrypointClass = ClassAccessor.getClass("io.papermc.paper.plugin.entrypoint.Entrypoint");
+            var handlerClass = ClassAccessor.getClass(PaperReflectionNames.LAUNCH_ENTRYPOINT_HANDLER);
+            var entrypointClass = ClassAccessor.getClass(PaperReflectionNames.ENTRYPOINT);
             if (handlerClass == null || entrypointClass == null) return null;
 
-            var handler = FieldAccessor.getValue(handlerClass, "INSTANCE", null);
-            var pluginEntrypoint = FieldAccessor.getValue(entrypointClass, "PLUGIN", null);
+            var handler = FieldAccessor.getValue(handlerClass, PaperReflectionNames.INSTANCE_FIELD, null);
+            var pluginEntrypoint = FieldAccessor.getValue(entrypointClass, PaperReflectionNames.PLUGIN_FIELD, null);
             return MethodAccessor.invoke(handler.getClass(), "get", handler, new Class<?>[]{entrypointClass}, pluginEntrypoint);
         } catch (Exception exception) {
             PlugManBukkit.getInstance().getLogger().fine("Could not resolve Paper plugin storage: " + exception.getMessage());
@@ -256,10 +257,10 @@ public class ModernPaperPluginManager extends PaperPluginManager {
     private boolean cleanupSafeClassDefiner(Plugin plugin) {
         try {
             // Try to unload from SafeClassDefiner
-            var cls = ClassAccessor.getClass("com.destroystokyo.paper.event.executor.asm.SafeClassDefiner");
+            var cls = ClassAccessor.getClass(PaperReflectionNames.SAFE_CLASS_DEFINER);
             if (cls == null) return true;
 
-            var instance = FieldAccessor.getValue(cls, "INSTANCE", null);
+            var instance = FieldAccessor.getValue(cls, PaperReflectionNames.INSTANCE_FIELD, null);
             var loaders = FieldAccessor.<Map<?, ?>>getValue(instance.getClass(), "loaders", instance);
             loaders.remove(plugin.getHandle().getClass().getClassLoader());
             return true;

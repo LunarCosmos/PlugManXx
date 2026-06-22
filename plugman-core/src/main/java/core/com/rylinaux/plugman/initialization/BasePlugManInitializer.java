@@ -114,10 +114,22 @@ public abstract class BasePlugManInitializer {
      * Cleanup resources and clear caches
      */
     public void cleanup() {
+        clearReflectionCaches();
         serviceRegistry.clear();
-        ClassAccessor.clearCache();
-        FieldAccessor.clearCache();
-        MethodAccessor.clearCache();
+    }
+
+    private void clearReflectionCaches() {
+        clearReflectionCache("class", ClassAccessor::clearCache);
+        clearReflectionCache("field", FieldAccessor::clearCache);
+        clearReflectionCache("method", MethodAccessor::clearCache);
+    }
+
+    private void clearReflectionCache(String cacheName, Runnable clearAction) {
+        try {
+            clearAction.run();
+        } catch (LinkageError | RuntimeException exception) {
+            logger.warning("Failed to clear " + cacheName + " reflection cache during shutdown: " + exception.getMessage());
+        }
     }
 
     /**

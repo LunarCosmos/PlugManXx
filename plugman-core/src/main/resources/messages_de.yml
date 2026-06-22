@@ -30,7 +30,8 @@ enable:
   all: '&9Alle Plugins wurden aktiviert.'
   already-enabled: '&c{0} ist bereits aktiviert.'
   enabled: '&9{0} wurde aktiviert.'
-error:
+  failed: '&c{0} konnte nicht aktiviert werden. Pruefe den Server-Log fuer den Plugin-Fehler.'
+  error:
   ignored: '&cPlugMan ist darauf konfiguriert, dieses Plugin zu ignorieren.'
   invalid-plugin: '&cDies ist kein gültiges Plugin.'
   no-permission: '&cDu hast hierzu keine Berechtigung.'
@@ -71,6 +72,7 @@ load:
   invalid-description: '&cDas Plugin hat eine ungültige Beschreibung.'
   invalid-plugin: '&cDiese Datei ist kein gültiges Plugin.'
   loaded: '&9{0} wurde geladen und aktiviert.'
+  missing-dependencies: '&c{0} konnte nicht geladen werden. Fehlende Pflicht-Abhaengigkeiten: {1}'
   plugin-dir: '&cPlugin-Verzeichnis nicht gefunden.'
 lookup:
   found: '&9/{0} ist bei {1} registriert.'

@@ -54,7 +54,7 @@ public class PaperThreadUtil extends BukkitThreadUtil {
     @Override
     public void asyncLater(Runnable runnable, long delay) {
         if (!shouldUseFolia()) {
-            super.async(runnable);
+            super.asyncLater(runnable, delay);
             return;
         }
 

@@ -28,7 +28,10 @@ package core.com.rylinaux.plugman.commands.executables;
 
 import core.com.rylinaux.plugman.commands.AbstractCommand;
 import core.com.rylinaux.plugman.commands.CommandSender;
+import core.com.rylinaux.plugman.plugins.Plugin;
 import core.com.rylinaux.plugman.services.ServiceRegistry;
+
+import java.util.ArrayList;
 
 /**
  * Command that restarts plugin(s).
@@ -82,27 +85,63 @@ public class RestartCommand extends AbstractCommand {
     public void execute(CommandSender sender, String label, String[] args) {
         if (!validateArguments(label, args, 2)) return;
 
-        if (handleAllArgument(args, "all", () -> {
-            getPluginManager().disableAll();
-            getPluginManager().enableAll();
-        }, "restart.all")) return;
+        if (args[1].equalsIgnoreCase("all") || args[1].equalsIgnoreCase("*")) {
+            if (!hasPermission("all")) {
+                sendNoPermissionMessage();
+                return;
+            }
+            restartAllPlugins(sender, label);
+            return;
+        }
 
         var target = getPluginManager().getPluginByName(args, 1);
 
         if (!validatePlugin(label, target)) return;
 
-        var result = getPluginManager().disable(target);
-        if (!result.success()) {
-            sender.sendMessage(result.messageId(), target.getName());
+        restartPlugin(sender, label, target);
+    }
+
+    private void restartAllPlugins(CommandSender sender, String label) {
+        var plugins = getPluginManager().getPlugins().stream().filter(plugin ->
+                plugin != null && !getPluginManager().isIgnored(plugin)).toList();
+
+        var failedPlugins = new ArrayList<String>();
+
+        for (var plugin : plugins) {
+            var success = restartPlugin(sender, label, plugin);
+
+            if (success) continue;
+            failedPlugins.add(plugin.getName());
+        }
+
+        if (failedPlugins.isEmpty()) {
+            sender.sendMessage("restart.all");
             return;
         }
 
-        result = getPluginManager().enable(target);
+        sender.sendMessage("restart.all-failed", String.join(", ", failedPlugins));
+    }
+
+    private boolean restartPlugin(CommandSender sender, String label, Plugin target) {
+        if (target == null) {
+            sendInvalidPluginMessage();
+            sendUsage(label);
+            return false;
+        }
+
+        var result = getPluginManager().unload(target);
         if (!result.success()) {
             sender.sendMessage(result.messageId(), target.getName());
-            return;
+            return false;
+        }
+
+        result = getPluginManager().load(target);
+        if (!result.success()) {
+            sender.sendMessage(result.messageId(), result.messageArgs().length == 0 ? new Object[]{target.getName()} : result.messageArgs());
+            return false;
         }
 
         sender.sendMessage("restart.restarted", target.getName());
+        return true;
     }
 }
