@@ -50,14 +50,10 @@ import org.yaml.snakeyaml.error.YAMLException;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -237,36 +233,44 @@ public class PaperPluginManager extends BasePluginManager {
             debugStep = "resolve paper classes";
             var providerSourceClass = ClassAccessor.getClass("io.papermc.paper.plugin.provider.source.FileProviderSource");
             var storageClass = ClassAccessor.getClass("io.papermc.paper.plugin.storage.ServerPluginProviderStorage");
-            var handlerClass = ClassAccessor.getClass("io.papermc.paper.plugin.manager.RuntimePluginEntrypointHandler");
+            var bootstrapStorageClass = ClassAccessor.getClass("io.papermc.paper.plugin.storage.BootstrapProviderStorage");
             var entrypointClass = ClassAccessor.getClass("io.papermc.paper.plugin.entrypoint.Entrypoint");
             debugPaperReload("classes providerSource=" + className(providerSourceClass)
                     + ", storage=" + className(storageClass)
-                    + ", handler=" + className(handlerClass)
+                    + ", bootstrapStorage=" + className(bootstrapStorageClass)
                     + ", entrypoint=" + className(entrypointClass));
-            if (providerSourceClass == null || storageClass == null || handlerClass == null || entrypointClass == null) return null;
+            if (providerSourceClass == null || storageClass == null || bootstrapStorageClass == null || entrypointClass == null) return null;
 
             debugStep = "construct provider source/storage/handler";
             Function<Path, String> contextFormatter = source -> "File '" + source + "'";
             var providerSource = newInstance(providerSourceClass, new Class<?>[]{Function.class}, contextFormatter);
             var storage = newInstance(storageClass);
-            var handler = newInstance(handlerClass, new Class<?>[]{ClassAccessor.getClass("io.papermc.paper.plugin.storage.ProviderStorage")}, storage);
+            var bootstrapStorage = newInstance(bootstrapStorageClass);
             var pluginEntrypoint = FieldAccessor.getValue(entrypointClass, "PLUGIN", null);
+            var bootstrapEntrypoint = FieldAccessor.getValue(entrypointClass, "BOOTSTRAPPER", null);
+            var handler = createRuntimePaperEntrypointHandler(entrypointClass, pluginEntrypoint, storage, bootstrapEntrypoint, bootstrapStorage);
+            if (handler == null) return null;
             debugPaperReload("constructed providerSource=" + providerSource.getClass().getName()
                     + ", storage=" + storage.getClass().getName()
+                    + ", bootstrapStorage=" + bootstrapStorage.getClass().getName()
                     + ", handler=" + handler.getClass().getName()
-                    + ", entrypoint=" + pluginEntrypoint);
+                    + ", pluginEntrypoint=" + pluginEntrypoint
+                    + ", bootstrapEntrypoint=" + bootstrapEntrypoint);
 
             debugStep = "prepare file context";
             var preparedPath = prepareProviderContext(providerSourceClass, providerSource, pluginFile);
             debugPaperReload("prepared path=" + preparedPath);
 
             debugStep = "register providers";
-            var runtimeHandler = filterRuntimeEntrypoints(handler, pluginEntrypoint);
-            registerProviders(providerSourceClass, providerSource, runtimeHandler, preparedPath);
+            registerProviders(providerSourceClass, providerSource, handler, preparedPath);
             debugPaperReload("registered providers");
 
+            debugStep = "enter bootstrap entrypoint";
+            enterPaperRuntimeEntrypoint(handler, entrypointClass, bootstrapEntrypoint);
+            debugPaperReload("entered bootstrap entrypoint");
+
             debugStep = "enter plugin entrypoint";
-            MethodAccessor.invoke(handlerClass, "enter", handler, new Class<?>[]{entrypointClass}, pluginEntrypoint);
+            enterPaperRuntimeEntrypoint(handler, entrypointClass, pluginEntrypoint);
             debugPaperReload("entered plugin entrypoint");
 
             debugStep = "lookup loaded plugin";
@@ -277,6 +281,13 @@ public class PaperPluginManager extends BasePluginManager {
             debugStep = "enable plugin";
             org.bukkit.Bukkit.getPluginManager().enablePlugin(target);
             debugPaperReload("enabled plugin " + target.getName());
+            debugKnownPaperCommands(target, "after enable before sync");
+            debugStep = "fire paper command lifecycle";
+            firePaperCommandsLifecycle(target);
+            debugKnownPaperCommands(target, "after command lifecycle");
+            debugStep = "sync commands";
+            syncCommands();
+            debugKnownPaperCommands(target, "after sync");
             debugStep = "replay join listeners";
             replayJoinListenersForOnlinePlayers(target);
             return new BukkitPlugin(target);
@@ -306,30 +317,81 @@ public class PaperPluginManager extends BasePluginManager {
         }
     }
 
-    private Object filterRuntimeEntrypoints(Object handler, Object pluginEntrypoint) {
+    private Object createRuntimePaperEntrypointHandler(Class<?> entrypointClass,
+                                                      Object pluginEntrypoint,
+                                                      Object pluginStorage,
+                                                      Object bootstrapEntrypoint,
+                                                      Object bootstrapStorage) {
         try {
             var handlerType = ClassAccessor.getClass("io.papermc.paper.plugin.entrypoint.EntrypointHandler");
-            if (handlerType == null || !handlerType.isInterface()) return handler;
+            if (handlerType == null || !handlerType.isInterface()) return null;
 
             return java.lang.reflect.Proxy.newProxyInstance(
                     handlerType.getClassLoader(),
                     new Class<?>[]{handlerType},
                     (proxy, method, args) -> {
-                        if (method.getName().equals("register") && args != null && args.length > 0 && args[0] != pluginEntrypoint) {
-                            debugPaperReload("ignored runtime entrypoint " + args[0] + " because Paper only allows PLUGIN reloads");
+                        if (method.getName().equals("register") && args != null && args.length == 2) {
+                            var storage = args[0] == bootstrapEntrypoint ? bootstrapStorage : args[0] == pluginEntrypoint ? pluginStorage : null;
+                            if (storage == null) {
+                                debugPaperReload("ignored unsupported runtime entrypoint " + args[0]);
+                                return null;
+                            }
+
+                            invokeStorageRegister(storage, args[1]);
                             return null;
                         }
 
-                        try {
-                            return method.invoke(handler, args);
-                        } catch (InvocationTargetException exception) {
-                            throw exception.getTargetException();
+                        if (method.getName().equals("enter") && args != null && args.length == 1) {
+                            var storage = args[0] == bootstrapEntrypoint ? bootstrapStorage : args[0] == pluginEntrypoint ? pluginStorage : null;
+                            if (storage == null) throw new IllegalArgumentException("Unsupported runtime entrypoint " + args[0]);
+
+                            invokeStorageEnter(storage);
+                            return null;
                         }
+
+                        if (method.getDeclaringClass() == Object.class) {
+                            return switch (method.getName()) {
+                                case "toString" -> "PlugManRuntimePaperEntrypointHandler";
+                                case "hashCode" -> System.identityHashCode(proxy);
+                                case "equals" -> proxy == args[0];
+                                default -> null;
+                            };
+                        }
+
+                        throw new UnsupportedOperationException("Unsupported EntrypointHandler method " + method.getName());
                     });
         } catch (Exception exception) {
-            debugPaperReload("could not create runtime entrypoint filter: " + exception.getMessage());
-            return handler;
+            debugPaperReload("could not create runtime entrypoint handler: " + exception.getMessage());
+            return null;
         }
+    }
+
+    private void enterPaperRuntimeEntrypoint(Object handler, Class<?> entrypointClass, Object entrypoint) throws Exception {
+        MethodAccessor.invoke(handler.getClass(), "enter", handler, new Class<?>[]{entrypointClass}, entrypoint);
+    }
+
+    private void invokeStorageRegister(Object storage, Object provider) throws ReflectiveOperationException {
+        var providerClass = ClassAccessor.getClass("io.papermc.paper.plugin.provider.PluginProvider");
+        var method = getAllMethods(storage.getClass()).stream()
+                .filter(candidate -> candidate.getName().equals("register"))
+                .filter(candidate -> candidate.getParameterTypes().length == 1)
+                .filter(candidate -> providerClass == null || candidate.getParameterTypes()[0].isAssignableFrom(providerClass))
+                .findFirst()
+                .orElseThrow(() -> new NoSuchMethodException("register method not found in " + storage.getClass().getName()));
+
+        method.setAccessible(true);
+        method.invoke(storage, provider);
+    }
+
+    private void invokeStorageEnter(Object storage) throws ReflectiveOperationException {
+        var method = getAllMethods(storage.getClass()).stream()
+                .filter(candidate -> candidate.getName().equals("enter"))
+                .filter(candidate -> candidate.getParameterTypes().length == 0)
+                .findFirst()
+                .orElseThrow(() -> new NoSuchMethodException("enter method not found in " + storage.getClass().getName()));
+
+        method.setAccessible(true);
+        method.invoke(storage);
     }
 
     private void replayJoinListenersForOnlinePlayers(org.bukkit.plugin.Plugin plugin) {
@@ -355,6 +417,94 @@ public class PaperPluginManager extends BasePluginManager {
 
         debugPaperReload("replayed " + replayed + " PlayerJoinEvent listener calls for " + plugin.getName()
                 + " across " + Bukkit.getOnlinePlayers().size() + " online players");
+    }
+
+    private void debugKnownPaperCommands(org.bukkit.plugin.Plugin plugin, String phase) {
+        if (!isPaperReloadDebugEnabled()) return;
+
+        try {
+            var knownCommands = getKnownCommands();
+            if (knownCommands == null) {
+                debugPaperReload("commands " + phase + ": knownCommands unavailable");
+                return;
+            }
+
+            var pluginName = plugin.getName().toLowerCase();
+            var pluginLoader = plugin.getClass().getClassLoader();
+            var matches = knownCommands.asMap().entrySet().stream()
+                    .filter(entry -> commandMayBelongToPlugin(entry.getKey(), entry.getValue().getHandle(), pluginName, pluginLoader))
+                    .map(entry -> entry.getKey() + "=" + entry.getValue().getHandle().getClass().getName())
+                    .toList();
+
+            debugPaperReload("commands " + phase + " for " + plugin.getName() + ": " + matches);
+        } catch (Exception exception) {
+            debugPaperReload("commands " + phase + " debug failed: " + exception.getClass().getName() + ": " + exception.getMessage());
+        }
+    }
+
+    private boolean commandMayBelongToPlugin(String key, Object command, String pluginName, ClassLoader pluginLoader) {
+        var lowerKey = key.toLowerCase();
+        return lowerKey.contains(pluginName)
+                || (command != null && command.getClass().getClassLoader() == pluginLoader);
+    }
+
+    private void firePaperCommandsLifecycle(org.bukkit.plugin.Plugin plugin) {
+        try {
+            var lifecycleEventsClass = ClassAccessor.getClass("io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents");
+            var lifecycleRunnerClass = ClassAccessor.getClass("io.papermc.paper.plugin.lifecycle.event.LifecycleEventRunner");
+            var paperCommandsClass = ClassAccessor.getClass("io.papermc.paper.command.brigadier.PaperCommands");
+            var reloadableEventClass = ClassAccessor.getClass("io.papermc.paper.plugin.lifecycle.event.registrar.RegistrarEventImpl$ReloadableImpl");
+            var paperRegistrarClass = ClassAccessor.getClass("io.papermc.paper.plugin.lifecycle.event.registrar.PaperRegistrar");
+            var lifecycleOwnerClass = ClassAccessor.getClass("io.papermc.paper.plugin.lifecycle.event.LifecycleEventOwner");
+            var causeClass = ClassAccessor.getClass("io.papermc.paper.plugin.lifecycle.event.registrar.ReloadableRegistrarEvent$Cause");
+
+            if (lifecycleEventsClass == null || lifecycleRunnerClass == null || paperCommandsClass == null
+                    || reloadableEventClass == null || paperRegistrarClass == null || lifecycleOwnerClass == null || causeClass == null) {
+                debugPaperReload("paper command lifecycle unavailable");
+                return;
+            }
+
+            var commandsEventType = FieldAccessor.getValue(lifecycleEventsClass, "COMMANDS", null);
+            var runner = FieldAccessor.getValue(lifecycleRunnerClass, "INSTANCE", null);
+            var paperCommands = FieldAccessor.getValue(paperCommandsClass, "INSTANCE", null);
+            var reloadCause = FieldAccessor.getValue(causeClass, "RELOAD", null);
+            preparePaperCommandsRegistrar(paperCommandsClass, paperCommands);
+
+            var constructor = reloadableEventClass.getDeclaredConstructor(paperRegistrarClass, Class.class, causeClass);
+            constructor.setAccessible(true);
+            var event = constructor.newInstance(paperCommands, lifecycleOwnerClass, reloadCause);
+
+            java.util.function.Predicate<Object> targetPluginOnly = owner -> owner == plugin;
+            var callEvent = getAllMethods(lifecycleRunnerClass).stream()
+                    .filter(method -> method.getName().equals("callEvent"))
+                    .filter(method -> method.getParameterTypes().length == 3)
+                    .filter(method -> method.getParameterTypes()[2].isAssignableFrom(java.util.function.Predicate.class))
+                    .findFirst()
+                    .orElseThrow(() -> new NoSuchMethodException("LifecycleEventRunner#callEvent with Predicate not found"));
+
+            callEvent.setAccessible(true);
+            callEvent.invoke(runner, commandsEventType, event, targetPluginOnly);
+            debugPaperReload("fired Paper COMMANDS lifecycle for " + plugin.getName());
+        } catch (InvocationTargetException exception) {
+            var cause = exception.getTargetException() == null ? exception : exception.getTargetException();
+            PlugManBukkit.getInstance().getLogger().log(Level.WARNING,
+                    "[PaperReloadDebug] failed to fire Paper COMMANDS lifecycle for " + plugin.getName(), cause);
+        } catch (Exception exception) {
+            PlugManBukkit.getInstance().getLogger().log(Level.WARNING,
+                    "[PaperReloadDebug] failed to fire Paper COMMANDS lifecycle for " + plugin.getName(), exception);
+        }
+    }
+
+    private void preparePaperCommandsRegistrar(Class<?> paperCommandsClass, Object paperCommands) throws Exception {
+        MethodAccessor.invoke(paperCommandsClass, "setValid", paperCommands);
+
+        try {
+            MethodAccessor.invoke(paperCommandsClass, "getDispatcher", paperCommands);
+            debugPaperReload("PaperCommands dispatcher is available");
+        } catch (InvocationTargetException exception) {
+            var cause = exception.getTargetException() == null ? exception : exception.getTargetException();
+            debugPaperReload("PaperCommands dispatcher unavailable after setValid: " + cause.getMessage());
+        }
     }
 
     private String className(Class<?> clazz) {
@@ -484,7 +634,6 @@ public class PaperPluginManager extends BasePluginManager {
         return constructor.newInstance();
     }
 
-
     @Override
     protected synchronized void scheduleCommandLoading() {
         if (isFolia()) {
@@ -550,9 +699,10 @@ public class PaperPluginManager extends BasePluginManager {
             Plugin plugin,
             core.com.rylinaux.plugman.plugins.CommandMapWrap<Command> commands) {
         var pluginHandles = collectPaperCommandHandles(plugin, commands);
+        var pluginRootCommands = collectPaperRootCommandNames(plugin, commands);
 
         return commands.asMap().entrySet().stream()
-                .filter(entry -> pluginHandles.contains(entry.getValue().getHandle()))
+                .filter(entry -> pluginHandles.contains(entry.getValue().getHandle()) || pluginRootCommands.contains(entry.getKey().toLowerCase()))
                 .toList();
     }
 
@@ -562,7 +712,7 @@ public class PaperPluginManager extends BasePluginManager {
 
         for (var entry : commands.asMap().entrySet()) {
             var command = entry.getValue().<Command>getHandle();
-            if (entry.getKey().toLowerCase().startsWith(pluginPrefix) || commandBelongsToPlugin(command, plugin)) {
+            if (entry.getKey().toLowerCase().startsWith(pluginPrefix) || commandDirectlyBelongsToPlugin(command, plugin)) {
                 pluginHandles.add(command);
             }
         }
@@ -570,55 +720,35 @@ public class PaperPluginManager extends BasePluginManager {
         return pluginHandles;
     }
 
-    private boolean commandBelongsToPlugin(Command command, Plugin plugin) {
+    private Set<String> collectPaperRootCommandNames(Plugin plugin, core.com.rylinaux.plugman.plugins.CommandMapWrap<Command> commands) {
+        var rootCommands = new HashSet<String>();
+        var pluginPrefix = plugin.getName().toLowerCase() + ":";
+
+        for (var key : commands.asMap().keySet()) {
+            var lowerKey = key.toLowerCase();
+            if (!lowerKey.startsWith(pluginPrefix)) continue;
+
+            var commandName = lowerKey.substring(pluginPrefix.length());
+            if (!commandName.isBlank()) rootCommands.add(commandName);
+        }
+
+        return rootCommands;
+    }
+
+    private boolean commandDirectlyBelongsToPlugin(Command command, Plugin plugin) {
         var pluginHandle = plugin.<org.bukkit.plugin.Plugin>getHandle();
         var pluginLoader = pluginHandle.getClass().getClassLoader();
 
-        return command.getClass().getClassLoader() == pluginLoader ||
-                objectReferencesPlugin(command, pluginHandle, pluginLoader, Collections.newSetFromMap(new IdentityHashMap<>()));
-    }
+        if (command.getClass().getClassLoader() == pluginLoader) return true;
 
-    private boolean objectReferencesPlugin(Object value, org.bukkit.plugin.Plugin plugin, ClassLoader pluginLoader, Set<Object> visited) {
-        if (value == null || !visited.add(value)) return false;
-        if (value == plugin) return true;
+        var pluginField = FieldAccessor.getFirstFieldName(command.getClass(), org.bukkit.plugin.Plugin.class);
+        if (pluginField == null) return false;
 
-        var valueClass = value.getClass();
-        if (valueClass.getClassLoader() == pluginLoader) return true;
-        if (isSimpleReflectionValue(valueClass)) return false;
-
-        for (var field : getAllFields(valueClass)) {
-            if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
-
-            try {
-                field.setAccessible(true);
-                if (objectReferencesPlugin(field.get(value), plugin, pluginLoader, visited)) return true;
-            } catch (LinkageError | RuntimeException | IllegalAccessException ignored) {
-                // Some plugin command wrappers reference optional dependencies that may not be installed.
-            }
+        try {
+            return FieldAccessor.<org.bukkit.plugin.Plugin>getValue(command.getClass(), pluginField, command) == pluginHandle;
+        } catch (LinkageError | RuntimeException | IllegalAccessException ignored) {
+            return false;
         }
-
-        return false;
-    }
-
-    private boolean isSimpleReflectionValue(Class<?> valueClass) {
-        return valueClass.isPrimitive()
-                || valueClass.isEnum()
-                || valueClass.getName().startsWith("java.lang.")
-                || valueClass.getName().startsWith("java.util.");
-    }
-
-    private List<Field> getAllFields(Class<?> clazz) {
-        var fields = new ArrayList<Field>();
-        var current = clazz;
-        while (current != null) {
-            try {
-                fields.addAll(List.of(current.getDeclaredFields()));
-            } catch (LinkageError | RuntimeException ignored) {
-                return fields;
-            }
-            current = current.getSuperclass();
-        }
-        return fields;
     }
 
     private void cleanupPaperPluginManager(Plugin plugin) {
