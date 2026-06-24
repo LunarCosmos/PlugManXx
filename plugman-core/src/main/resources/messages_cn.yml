@@ -64,7 +64,8 @@ info:
   depends: '&7- 依赖：{0}'
   softdepends: '&7- 软依赖：&a{0}'
 list:
-  list: '&9插件（{0}）：{1}'
+  paper: '&9Paper 插件（&b{0}&9）：{1}'
+  bukkit: '&9Bukkit 插件（&e{0}&9）：{1}'
 load:
   already-loaded: '&c已经挂载过 {0} 了。'
   cannot-find: '&c找不到文件且无法搜索它。'

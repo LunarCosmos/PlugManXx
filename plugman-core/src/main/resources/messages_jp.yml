@@ -63,7 +63,8 @@ info:
   depends: '&7- 依存関係：{0}'
   softdepends: '&7- ソフト依存関係：&a{0}'
 list:
-  list: '&9プラグイン（{0}）：{1}'
+  paper: '&9Paper プラグイン（&b{0}&9）：{1}'
+  bukkit: '&9Bukkit プラグイン（&e{0}&9）：{1}'
 load:
   already-loaded: '&c{0} はすでにロードされています。'
   cannot-find: '&cファイルを見つけられず、説明文の検索に失敗しました。'

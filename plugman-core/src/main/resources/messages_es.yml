@@ -64,7 +64,8 @@ info:
   depends: '&7- Dependencias: {0}'
   softdepends: '&7- SoftDepends: &a{0}'
 list:
-  list: '&9Plugins ({0}): {1}'
+  paper: '&9Plugins Paper (&b{0}&9): {1}'
+  bukkit: '&9Plugins Bukkit (&e{0}&9): {1}'
 load:
   already-loaded: '&c{0} ya ha sido cargado.'
   cannot-find: '&cNo se ha encontrado el archivo y fallo al buscar descripciones.'

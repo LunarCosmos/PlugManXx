@@ -75,6 +75,8 @@ public class PaperPluginManager extends BasePluginManager {
     private static final String REGISTER_PROVIDERS_METHOD = "registerProviders";
     private static final String REGISTER_METHOD = "register";
     private static final String ENTER_METHOD = "enter";
+    private static final String CURRENT_CONTEXT_FIELD = "currentContext";
+    private static final String SET_CURRENT_CONTEXT_METHOD = "setCurrentContext";
     private static final String COMMANDS_LOG_PREFIX = "commands ";
 
     @Delegate
@@ -219,7 +221,8 @@ public class PaperPluginManager extends BasePluginManager {
 
             var target = MethodAccessor.<org.bukkit.plugin.Plugin>invoke(instanceManager.getClass(), "loadPlugin", instanceManager, new Class<?>[]{Path.class}, pluginFile.toPath());
 
-            MethodAccessor.invoke(instanceManager.getClass(), "enablePlugin", instanceManager, new Class<?>[]{org.bukkit.plugin.Plugin.class}, target);
+            enablePluginWithPaperCommandContext(target, () ->
+                    MethodAccessor.invoke(instanceManager.getClass(), "enablePlugin", instanceManager, new Class<?>[]{org.bukkit.plugin.Plugin.class}, target));
 
             return new BukkitPlugin(target);
         } catch (Exception exception) {
@@ -286,7 +289,7 @@ public class PaperPluginManager extends BasePluginManager {
             if (target == null) return null;
 
             debugStep = "enable plugin";
-            org.bukkit.Bukkit.getPluginManager().enablePlugin(target);
+            enablePluginWithPaperCommandContext(target, () -> org.bukkit.Bukkit.getPluginManager().enablePlugin(target));
             debugPaperReload("enabled plugin " + target.getName());
             debugKnownPaperCommands(target, "after enable before sync");
             debugStep = "fire paper command lifecycle";
@@ -553,6 +556,63 @@ public class PaperPluginManager extends BasePluginManager {
             var cause = exception.getTargetException() == null ? exception : exception.getTargetException();
             debugPaperReload("PaperCommands dispatcher unavailable after setValid: " + cause.getMessage());
         }
+    }
+
+    private void enablePluginWithPaperCommandContext(org.bukkit.plugin.Plugin plugin, ThrowingRunnable enableAction) throws Exception {
+        var paperCommandsClass = ClassAccessor.getClass(PaperReflectionNames.PAPER_COMMANDS);
+        var lifecycleOwnerClass = ClassAccessor.getClass(PaperReflectionNames.LIFECYCLE_EVENT_OWNER);
+        if (paperCommandsClass == null || lifecycleOwnerClass == null || !lifecycleOwnerClass.isInstance(plugin)) {
+            enableAction.run();
+            return;
+        }
+
+        var paperCommands = FieldAccessor.getValue(paperCommandsClass, PaperReflectionNames.INSTANCE_FIELD, null);
+        if (paperCommands == null) {
+            enableAction.run();
+            return;
+        }
+
+        Object previousContext = null;
+        var restoreContext = false;
+        try {
+            previousContext = FieldAccessor.getValue(paperCommandsClass, CURRENT_CONTEXT_FIELD, paperCommands);
+            setPaperCommandContext(paperCommandsClass, paperCommands, lifecycleOwnerClass, plugin);
+            restoreContext = true;
+            debugPaperReload("set PaperCommands lifecycle owner context for " + plugin.getName());
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            debugPaperReload("PaperCommands lifecycle owner context unavailable: "
+                    + exception.getClass().getName() + ": " + exception.getMessage());
+        }
+
+        try {
+            enableAction.run();
+        } finally {
+            if (restoreContext) restorePaperCommandContext(paperCommandsClass, paperCommands, lifecycleOwnerClass, previousContext);
+        }
+    }
+
+    private void restorePaperCommandContext(Class<?> paperCommandsClass,
+                                            Object paperCommands,
+                                            Class<?> lifecycleOwnerClass,
+                                            Object previousContext) {
+        try {
+            setPaperCommandContext(paperCommandsClass, paperCommands, lifecycleOwnerClass, previousContext);
+        } catch (Exception exception) {
+            debugPaperReload("failed to restore PaperCommands lifecycle owner context: "
+                    + exception.getClass().getName() + ": " + exception.getMessage());
+        }
+    }
+
+    private void setPaperCommandContext(Class<?> paperCommandsClass,
+                                        Object paperCommands,
+                                        Class<?> lifecycleOwnerClass,
+                                        Object context) throws Exception {
+        MethodAccessor.invoke(paperCommandsClass, SET_CURRENT_CONTEXT_METHOD, paperCommands, new Class<?>[]{lifecycleOwnerClass}, context);
+    }
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
     }
 
     private String className(Class<?> clazz) {
