@@ -8,11 +8,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Map;
 import java.util.List;
 
 /**
@@ -23,36 +18,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PlugManConfigurationManager {
     public static final int CURRENT_CONFIG_VERSION = 4;
-    private static final String DEFAULT_MESSAGES_FILE = "messages.yml";
-    private static final String GERMAN_MESSAGES_FILE = "messages_de.yml";
-    private static final Map<String, MessageListDefaults> VERSION_4_MESSAGES = Map.of(
-            DEFAULT_MESSAGES_FILE, new MessageListDefaults(
-                    "&9Paper Plugins (&b{0}&9): {1}",
-                    "&9Bukkit Plugins (&e{0}&9): {1}"),
-            GERMAN_MESSAGES_FILE, new MessageListDefaults(
-                    "&9Paper-Plugins (&b{0}&9): {1}",
-                    "&9Bukkit-Plugins (&e{0}&9): {1}"),
-            "messages_es.yml", new MessageListDefaults(
-                    "&9Plugins Paper (&b{0}&9): {1}",
-                    "&9Plugins Bukkit (&e{0}&9): {1}"),
-            "messages_cn.yml", new MessageListDefaults(
-                    "&9Paper 插件（&b{0}&9）：{1}",
-                    "&9Bukkit 插件（&e{0}&9）：{1}"),
-            "messages_jp.yml", new MessageListDefaults(
-                    "&9Paper プラグイン（&b{0}&9）：{1}",
-                    "&9Bukkit プラグイン（&e{0}&9）：{1}"),
-            "messages_ru.yml", new MessageListDefaults(
-                    "&9Paper-плагины (&b{0}&9): {1}",
-                    "&9Bukkit-плагины (&e{0}&9): {1}"),
-            "messages_tw.yml", new MessageListDefaults(
-                    "&9Paper 插件（&b{0}&9）：{1}",
-                    "&9Bukkit 插件（&e{0}&9）：{1}")
-    );
 
     private final YamlConfigurationProvider configProvider;
     private final PluginLogger logger;
     private final JacksonConfigurationService jacksonConfigService;
-
 
     /**
      * List of plugins to ignore, partially.
@@ -162,131 +131,10 @@ public class PlugManConfigurationManager {
     private void migrateToVersion4() {
         plugManConfig.setVersion(4);
         plugManConfig.setPaperReloadDebug(false);
-        migrateMessagesToVersion4();
+        new MessageMigrationService(configProvider.getDataFolder(), logger).migrateToVersion4();
         saveJacksonConfiguration();
 
         logger.info("Migrated config to version 4, you can now enable Paper reload debug logs with 'paperReloadDebug: true'.");
-    }
-
-    private void migrateMessagesToVersion4() {
-        var dataFolder = configProvider.getDataFolder();
-        migrateMessagesFileToVersion4(new File(dataFolder, DEFAULT_MESSAGES_FILE), VERSION_4_MESSAGES.get(DEFAULT_MESSAGES_FILE));
-
-        var messagesFolder = new File(dataFolder, "messages");
-        for (var entry : VERSION_4_MESSAGES.entrySet()) {
-            if (entry.getKey().equals(DEFAULT_MESSAGES_FILE)) continue;
-            migrateMessagesFileToVersion4(new File(messagesFolder, entry.getKey()), entry.getValue());
-        }
-    }
-
-    private void migrateMessagesFileToVersion4(File messagesFile, MessageListDefaults defaults) {
-        if (!messagesFile.exists()) return;
-
-        try {
-            var lines = Files.readAllLines(messagesFile.toPath(), StandardCharsets.UTF_8);
-            var updatedLines = addMissingVersion4MessageEntries(lines, messagesFile.getName(), defaults);
-            if (updatedLines == null) return;
-
-            Files.write(messagesFile.toPath(), updatedLines, StandardCharsets.UTF_8);
-            logger.info("Added missing version 4 messages to " + messagesFile.getName() + ".");
-        } catch (IOException exception) {
-            logger.warning("Failed to migrate " + messagesFile.getName() + " messages to version 4: " + exception.getMessage());
-        }
-    }
-
-    private List<String> addMissingListMessageEntries(List<String> lines, MessageListDefaults defaults) {
-        var listSectionIndex = findTopLevelSection(lines, "list:");
-        var listSectionEnd = listSectionIndex == -1 ? lines.size() : findSectionEnd(lines, listSectionIndex);
-        var hasPaperMessage = hasListMessage(lines, listSectionIndex, listSectionEnd, "paper");
-        var hasBukkitMessage = hasListMessage(lines, listSectionIndex, listSectionEnd, "bukkit");
-
-        if (hasPaperMessage && hasBukkitMessage) return null;
-
-        var updatedLines = new ArrayList<>(lines);
-        if (listSectionIndex == -1) {
-            if (!updatedLines.isEmpty() && !updatedLines.get(updatedLines.size() - 1).isBlank()) updatedLines.add("");
-            updatedLines.add("list:");
-            listSectionEnd = updatedLines.size();
-        }
-
-        var insertAt = listSectionIndex == -1 ? listSectionEnd : findSectionEnd(updatedLines, listSectionIndex);
-        if (!hasBukkitMessage) updatedLines.add(insertAt, "  bukkit: '" + defaults.bukkitMessage() + "'");
-        if (!hasPaperMessage) updatedLines.add(insertAt, "  paper: '" + defaults.paperMessage() + "'");
-
-        return updatedLines;
-    }
-
-    private List<String> addMissingVersion4MessageEntries(List<String> lines, String fileName, MessageListDefaults defaults) {
-        var updatedLines = addMissingListMessageEntries(lines, defaults);
-        var changed = updatedLines != null;
-        if (updatedLines == null) updatedLines = new ArrayList<>(lines);
-        changed |= addMissingMessageEntry(updatedLines, "enable", "failed", getEnableFailedMessage(fileName));
-        changed |= addMissingMessageEntry(updatedLines, "load", "missing-dependencies", getMissingDependenciesMessage(fileName));
-
-        return changed ? updatedLines : null;
-    }
-
-    private boolean addMissingMessageEntry(List<String> lines, String section, String key, String message) {
-        var sectionIndex = findTopLevelSection(lines, section + ":");
-        var sectionEnd = sectionIndex == -1 ? lines.size() : findSectionEnd(lines, sectionIndex);
-        if (hasListMessage(lines, sectionIndex, sectionEnd, key)) return false;
-
-        if (sectionIndex == -1) {
-            if (!lines.isEmpty() && !lines.get(lines.size() - 1).isBlank()) lines.add("");
-            lines.add(section + ":");
-            lines.add("  " + key + ": '" + message + "'");
-            return true;
-        }
-
-        lines.add(sectionEnd, "  " + key + ": '" + message + "'");
-        return true;
-    }
-
-    private String getEnableFailedMessage(String fileName) {
-        if (fileName.equals(GERMAN_MESSAGES_FILE)) {
-            return "&c{0} konnte nicht aktiviert werden. Prüfe den Server-Log für den Plugin-Fehler.";
-        }
-
-        return "&c{0} could not be enabled. Check the server log for the plugin error.";
-    }
-
-    private String getMissingDependenciesMessage(String fileName) {
-        if (fileName.equals(GERMAN_MESSAGES_FILE)) {
-            return "&c{0} konnte nicht geladen werden. Fehlende Pflicht-Abhängigkeiten: {1}";
-        }
-
-        return "&cCould not load {0}. Missing required dependencies: {1}";
-    }
-
-    private int findTopLevelSection(List<String> lines, String sectionName) {
-        for (var i = 0; i < lines.size(); i++) {
-            if (lines.get(i).trim().equals(sectionName) && !lines.get(i).startsWith(" ")) return i;
-        }
-
-        return -1;
-    }
-
-    private int findSectionEnd(List<String> lines, int sectionIndex) {
-        for (var i = sectionIndex + 1; i < lines.size(); i++) {
-            var line = lines.get(i);
-            if (!line.isBlank() && !line.startsWith(" ") && !line.startsWith("#")) return i;
-        }
-
-        return lines.size();
-    }
-
-    private boolean hasListMessage(List<String> lines, int listSectionIndex, int listSectionEnd, String key) {
-        if (listSectionIndex == -1) return false;
-
-        var expectedPrefix = "  " + key + ":";
-        for (var i = listSectionIndex + 1; i < listSectionEnd; i++) {
-            if (lines.get(i).startsWith(expectedPrefix)) return true;
-        }
-
-        return false;
-    }
-
-    private record MessageListDefaults(String paperMessage, String bukkitMessage) {
     }
 
     private void migrateToVersion3() {
@@ -335,7 +183,6 @@ public class PlugManConfigurationManager {
 
         ignoredPlugins = new ImmutableWarnList<>(ignoredPluginsTemp);
     }
-
 
     /**
      * Get notification setting for broken command removal
