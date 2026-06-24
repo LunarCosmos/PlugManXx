@@ -108,7 +108,7 @@ public class PaperInitializer {
         var strategy = paperReloadStrategy == null ? resolvePaperReloadStrategy() : paperReloadStrategy;
 
         sendColoredPaperWarning(WARNING_BORDER);
-        sendColoredPaperWarning(WARNING_COLOR + "It seems like you're running on paper " + VALUE_COLOR + "(" + Bukkit.getVersion() + ")" + WARNING_COLOR + ".");
+        sendColoredPaperWarning(WARNING_COLOR + "It seems like you're running on " + VALUE_COLOR + Bukkit.getName() + " (" + Bukkit.getVersion() + ")" + WARNING_COLOR + ".");
         if (config.getPlugManConfig().isPaperReloadDebug()) showPaperRuntimeDiagnostics(strategy);
         sendColoredPaperWarning(WARNING_COLOR + "PlugManX Paper plugin reload support is experimental.");
         sendColoredPaperWarning(WARNING_COLOR + "Also, if you encounter any issues, please join my discord: " + LINK_COLOR + "https://discord.gg/GxEFhVY6ff");
