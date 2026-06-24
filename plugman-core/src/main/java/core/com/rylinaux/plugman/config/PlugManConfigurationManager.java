@@ -23,11 +23,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PlugManConfigurationManager {
     public static final int CURRENT_CONFIG_VERSION = 4;
+    private static final String DEFAULT_MESSAGES_FILE = "messages.yml";
+    private static final String GERMAN_MESSAGES_FILE = "messages_de.yml";
     private static final Map<String, MessageListDefaults> VERSION_4_MESSAGES = Map.of(
-            "messages.yml", new MessageListDefaults(
+            DEFAULT_MESSAGES_FILE, new MessageListDefaults(
                     "&9Paper Plugins (&b{0}&9): {1}",
                     "&9Bukkit Plugins (&e{0}&9): {1}"),
-            "messages_de.yml", new MessageListDefaults(
+            GERMAN_MESSAGES_FILE, new MessageListDefaults(
                     "&9Paper-Plugins (&b{0}&9): {1}",
                     "&9Bukkit-Plugins (&e{0}&9): {1}"),
             "messages_es.yml", new MessageListDefaults(
@@ -168,11 +170,11 @@ public class PlugManConfigurationManager {
 
     private void migrateMessagesToVersion4() {
         var dataFolder = configProvider.getDataFolder();
-        migrateMessagesFileToVersion4(new File(dataFolder, "messages.yml"), VERSION_4_MESSAGES.get("messages.yml"));
+        migrateMessagesFileToVersion4(new File(dataFolder, DEFAULT_MESSAGES_FILE), VERSION_4_MESSAGES.get(DEFAULT_MESSAGES_FILE));
 
         var messagesFolder = new File(dataFolder, "messages");
         for (var entry : VERSION_4_MESSAGES.entrySet()) {
-            if (entry.getKey().equals("messages.yml")) continue;
+            if (entry.getKey().equals(DEFAULT_MESSAGES_FILE)) continue;
             migrateMessagesFileToVersion4(new File(messagesFolder, entry.getKey()), entry.getValue());
         }
     }
@@ -241,7 +243,7 @@ public class PlugManConfigurationManager {
     }
 
     private String getEnableFailedMessage(String fileName) {
-        if (fileName.equals("messages_de.yml")) {
+        if (fileName.equals(GERMAN_MESSAGES_FILE)) {
             return "&c{0} konnte nicht aktiviert werden. Prüfe den Server-Log für den Plugin-Fehler.";
         }
 
@@ -249,7 +251,7 @@ public class PlugManConfigurationManager {
     }
 
     private String getMissingDependenciesMessage(String fileName) {
-        if (fileName.equals("messages_de.yml")) {
+        if (fileName.equals(GERMAN_MESSAGES_FILE)) {
             return "&c{0} konnte nicht geladen werden. Fehlende Pflicht-Abhängigkeiten: {1}";
         }
 
