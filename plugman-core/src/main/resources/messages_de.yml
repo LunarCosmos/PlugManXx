@@ -30,7 +30,7 @@ enable:
   all: '&9Alle Plugins wurden aktiviert.'
   already-enabled: '&c{0} ist bereits aktiviert.'
   enabled: '&9{0} wurde aktiviert.'
-  failed: '&c{0} konnte nicht aktiviert werden. Prüfe den Server-Log fuer den Plugin-Fehler.'
+  failed: '&c{0} konnte nicht aktiviert werden. Prüfe den Server-Log für den Plugin-Fehler.'
   error:
   ignored: '&cPlugMan ist darauf konfiguriert, dieses Plugin zu ignorieren.'
   invalid-plugin: '&cDies ist kein gültiges Plugin.'
