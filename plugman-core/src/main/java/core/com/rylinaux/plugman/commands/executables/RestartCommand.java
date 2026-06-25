@@ -84,4 +84,14 @@ public class RestartCommand extends CascadingPluginCommand {
     protected String pluginSuccessMessage() {
         return "restart.restarted";
     }
+
+    @Override
+    protected boolean requiresAllConfirmation() {
+        return true;
+    }
+
+    @Override
+    protected String allConfirmationMessage() {
+        return "restart.confirm-all";
+    }
 }

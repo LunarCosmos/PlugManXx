@@ -112,7 +112,7 @@ public class PaperInitializer {
         if (config.getPlugManConfig().isPaperReloadDebug()) showPaperRuntimeDiagnostics(strategy);
         sendColoredPaperWarning(WARNING_COLOR + "PlugManX Paper plugin reload support is experimental.");
         sendColoredPaperWarning(WARNING_COLOR + "Also, if you encounter any issues, please join my discord: " + LINK_COLOR + "https://discord.gg/GxEFhVY6ff");
-        sendColoredPaperWarning(WARNING_COLOR + "Or create an issue on GitHub: " + LINK_COLOR + "https://github.com/Test-Account666/PlugMan");
+        sendColoredPaperWarning(WARNING_COLOR + "Or create an issue on GitHub: " + LINK_COLOR + "https://github.com/Test-Account666/PlugManX");
         sendColoredPaperWarning(WARNING_BORDER);
 
         plugin.getLogger().info("You can disable this warning by setting 'showPaperWarning' to false in the config.yml");

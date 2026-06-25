@@ -84,4 +84,14 @@ public class ReloadCommand extends CascadingPluginCommand {
     protected String pluginSuccessMessage() {
         return "reload.reloaded";
     }
+
+    @Override
+    protected boolean requiresAllConfirmation() {
+        return true;
+    }
+
+    @Override
+    protected String allConfirmationMessage() {
+        return "reload.confirm-all";
+    }
 }

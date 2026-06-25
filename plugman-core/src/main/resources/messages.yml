@@ -31,7 +31,7 @@ enable:
   already-enabled: '&c{0} is already enabled.'
   enabled: '&9{0} has been enabled.'
   failed: '&c{0} could not be enabled. Check the server log for the plugin error.'
-  error:
+error:
   ignored: '&cPlugMan is configured to ignore that plugin.'
   invalid-plugin: '&cThat is not a valid plugin.'
   no-permission: '&cYou do not have permission to do this.'
@@ -82,11 +82,13 @@ reload:
   all: '&9All plugins have been reloaded.'
   all-failed: '&cSome plugins failed to reload: {0}'
   blocked-dependents: '&cCould not reload {0}; active plugins depend on it: {1}. Reload or stop those plugins first, or restart the server.'
+  confirm-all: '&cReloading {0} plugins can crash or destabilize the server. Run &e/plugman reload all {1}&c to confirm.'
   reloaded: '&9{0} has been reloaded.'
 restart:
   all: '&9All plugins have been restarted.'
   all-failed: '&cSome plugins failed to restart: {0}'
   blocked-dependents: '&cCould not restart {0}; active plugins depend on it: {1}. Restart or stop those plugins first, or restart the server.'
+  confirm-all: '&cRestarting {0} plugins can crash or destabilize the server. Run &e/plugman restart all {1}&c to confirm.'
   restarted: '&9{0} has been restarted.'
 unload:
   failed: '&cFailed to unload {0}.'

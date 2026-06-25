@@ -37,6 +37,8 @@ import java.util.Set;
 import java.util.TreeSet;
 
 abstract class CascadingPluginCommand extends AbstractCommand {
+    private static final int CONFIRM_ALL_PLUGIN_THRESHOLD = 10;
+    private static final String CONFIRM_ARGUMENT = "confirm";
 
     protected CascadingPluginCommand(CommandSender sender,
                                      String name,
@@ -58,14 +60,14 @@ abstract class CascadingPluginCommand extends AbstractCommand {
                 return;
             }
 
-            runAllPlugins(sender, label);
+            runAllPlugins(sender, args);
             return;
         }
 
         var target = getPluginManager().getPluginByName(args, 1);
         if (!validatePlugin(label, target)) return;
 
-        runPluginWithCommandBatch(sender, label, target);
+        runPluginWithCommandBatch(sender, target);
     }
 
     protected abstract String allSuccessMessage();
@@ -74,14 +76,27 @@ abstract class CascadingPluginCommand extends AbstractCommand {
 
     protected abstract String pluginSuccessMessage();
 
-    private void runAllPlugins(CommandSender sender, String label) {
+    protected boolean requiresAllConfirmation() {
+        return false;
+    }
+
+    protected String allConfirmationMessage() {
+        return null;
+    }
+
+    private void runAllPlugins(CommandSender sender, String[] args) {
         var plugins = getPluginManager().getPlugins().stream().filter(plugin ->
                 plugin != null && !getPluginManager().isIgnored(plugin)).toList();
+
+        if (requiresConfirmation(args, plugins.size())) {
+            sender.sendMessage(allConfirmationMessage(), plugins.size(), CONFIRM_ARGUMENT);
+            return;
+        }
 
         var failedPlugins = new ArrayList<String>();
 
         for (var plugin : plugins) {
-            var success = runPluginWithCommandBatch(sender, label, plugin);
+            var success = runPluginWithCommandBatch(sender, plugin);
 
             if (success) continue;
             failedPlugins.add(plugin.getName());
@@ -95,19 +110,24 @@ abstract class CascadingPluginCommand extends AbstractCommand {
         sender.sendMessage(allFailedMessage(), String.join(", ", failedPlugins));
     }
 
-    private boolean runPluginWithCommandBatch(CommandSender sender, String label, Plugin target) {
+    private boolean requiresConfirmation(String[] args, int pluginCount) {
+        return requiresAllConfirmation()
+                && pluginCount > CONFIRM_ALL_PLUGIN_THRESHOLD
+                && (args.length < 3 || !args[2].equalsIgnoreCase(CONFIRM_ARGUMENT));
+    }
+
+    private boolean runPluginWithCommandBatch(CommandSender sender, Plugin target) {
         getPluginManager().beginCommandUpdateBatch();
         try {
-            return runPlugin(sender, label, target);
+            return runPlugin(sender, target);
         } finally {
             getPluginManager().endCommandUpdateBatch();
         }
     }
 
-    private boolean runPlugin(CommandSender sender, String label, Plugin target) {
+    private boolean runPlugin(CommandSender sender, Plugin target) {
         if (target == null) {
             sendInvalidPluginMessage();
-            sendUsage(label);
             return false;
         }
 

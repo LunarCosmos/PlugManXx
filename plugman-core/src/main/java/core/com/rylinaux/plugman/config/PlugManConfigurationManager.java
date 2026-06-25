@@ -76,6 +76,7 @@ public class PlugManConfigurationManager {
         }
 
         migrateConfigIfNeeded();
+        new MessageMigrationService(configProvider.getDataFolder(), logger).migrateToVersion5();
     }
 
     /**
@@ -129,7 +130,12 @@ public class PlugManConfigurationManager {
                 continue;
             }
 
-            if (configVersion == 4) migrateToVersion5();
+            if (configVersion == 4) {
+                migrateToVersion5();
+                continue;
+            }
+
+            break;
         }
     }
 
@@ -138,7 +144,7 @@ public class PlugManConfigurationManager {
         new MessageMigrationService(configProvider.getDataFolder(), logger).migrateToVersion5();
         saveJacksonConfiguration();
 
-        logger.info("Migrated config to version 5, added reload dependency safety messages.");
+        logger.info("Migrated config to version 5, added reload safety messages.");
     }
 
     private void migrateToVersion4() {
