@@ -17,7 +17,7 @@ import java.util.List;
  */
 @RequiredArgsConstructor
 public class PlugManConfigurationManager {
-    public static final int CURRENT_CONFIG_VERSION = 4;
+    public static final int CURRENT_CONFIG_VERSION = 5;
 
     private final YamlConfigurationProvider configProvider;
     private final PluginLogger logger;
@@ -124,8 +124,21 @@ public class PlugManConfigurationManager {
                 continue;
             }
 
-            if (configVersion == 3) migrateToVersion4();
+            if (configVersion == 3) {
+                migrateToVersion4();
+                continue;
+            }
+
+            if (configVersion == 4) migrateToVersion5();
         }
+    }
+
+    private void migrateToVersion5() {
+        plugManConfig.setVersion(5);
+        new MessageMigrationService(configProvider.getDataFolder(), logger).migrateToVersion5();
+        saveJacksonConfiguration();
+
+        logger.info("Migrated config to version 5, added reload dependency safety messages.");
     }
 
     private void migrateToVersion4() {

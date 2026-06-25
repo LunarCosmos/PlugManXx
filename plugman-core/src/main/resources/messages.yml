@@ -81,10 +81,12 @@ lookup:
 reload:
   all: '&9All plugins have been reloaded.'
   all-failed: '&cSome plugins failed to reload: {0}'
+  blocked-dependents: '&cCould not reload {0}; active plugins depend on it: {1}. Reload or stop those plugins first, or restart the server.'
   reloaded: '&9{0} has been reloaded.'
 restart:
   all: '&9All plugins have been restarted.'
   all-failed: '&cSome plugins failed to restart: {0}'
+  blocked-dependents: '&cCould not restart {0}; active plugins depend on it: {1}. Restart or stop those plugins first, or restart the server.'
   restarted: '&9{0} has been restarted.'
 unload:
   failed: '&cFailed to unload {0}.'

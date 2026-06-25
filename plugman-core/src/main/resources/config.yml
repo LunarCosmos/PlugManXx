@@ -17,4 +17,4 @@ auto-reload:
 showPaperWarning: true
 paperReloadDebug: false
 # Do not change this value
-version: 4
+version: 5

@@ -61,6 +61,8 @@ import org.yaml.snakeyaml.Yaml;
  */
 public abstract class BasePluginManager implements PluginManager {
     private static final String PAPER_PLUGIN_YML = "paper-plugin.yml";
+    private int commandUpdateBatchDepth = 0;
+    private boolean commandSyncPending = false;
 
     /**
      * Handles gentle unload logic common to all plugin managers.
@@ -297,6 +299,27 @@ public abstract class BasePluginManager implements PluginManager {
      */
     protected synchronized void scheduleCommandLoading() {
         PlugManBukkit.getInstance().get(ThreadUtil.class).syncLater(this::syncCommands, 10L);
+    }
+
+    @Override
+    public synchronized void beginCommandUpdateBatch() {
+        commandUpdateBatchDepth++;
+    }
+
+    @Override
+    public synchronized void endCommandUpdateBatch() {
+        if (commandUpdateBatchDepth > 0) commandUpdateBatchDepth--;
+        if (commandUpdateBatchDepth > 0 || !commandSyncPending) return;
+
+        commandSyncPending = false;
+        syncCommands();
+    }
+
+    protected synchronized boolean deferCommandSyncIfBatching() {
+        if (commandUpdateBatchDepth <= 0) return false;
+
+        commandSyncPending = true;
+        return true;
     }
 
 

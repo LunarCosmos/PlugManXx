@@ -32,6 +32,9 @@ import core.com.rylinaux.plugman.plugins.Plugin;
 import core.com.rylinaux.plugman.services.ServiceRegistry;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Command that reloads plugin(s).
@@ -97,7 +100,7 @@ public class ReloadCommand extends AbstractCommand {
         var target = getPluginManager().getPluginByName(args, 1);
 
         if (!validatePlugin(label, target)) return;
-        reloadPlugin(sender, label, target);
+        reloadPluginWithCommandBatch(sender, label, target);
     }
 
     private void reloadAllPlugins(CommandSender sender, String label) {
@@ -107,7 +110,7 @@ public class ReloadCommand extends AbstractCommand {
         var failedPlugins = new ArrayList<String>();
 
         for (var plugin : plugins) {
-            var success = reloadPlugin(sender, label, plugin);
+            var success = reloadPluginWithCommandBatch(sender, label, plugin);
 
             if (success) continue;
             failedPlugins.add(plugin.getName());
@@ -121,6 +124,15 @@ public class ReloadCommand extends AbstractCommand {
         sender.sendMessage("reload.all-failed", String.join(", ", failedPlugins));
     }
 
+    private boolean reloadPluginWithCommandBatch(CommandSender sender, String label, Plugin target) {
+        getPluginManager().beginCommandUpdateBatch();
+        try {
+            return reloadPlugin(sender, label, target);
+        } finally {
+            getPluginManager().endCommandUpdateBatch();
+        }
+    }
+
     private boolean reloadPlugin(CommandSender sender, String label, Plugin target) {
         if (target == null) {
             sendInvalidPluginMessage();
@@ -128,20 +140,81 @@ public class ReloadCommand extends AbstractCommand {
             return false;
         }
 
+        var dependents = findEnabledDependents(target);
+        var unloadedDependents = new ArrayList<Plugin>();
+
+        for (var dependent : dependents) {
+            var result = getPluginManager().unload(dependent);
+            if (!result.success()) {
+                sender.sendMessage(result.messageId(), dependent.getName());
+                reloadDependents(sender, unloadedDependents);
+                return false;
+            }
+            unloadedDependents.add(dependent);
+        }
+
         var result = getPluginManager().unload(target);
         if (!result.success()) {
             sender.sendMessage(result.messageId(), target.getName());
+            reloadDependents(sender, unloadedDependents);
             return false;
         }
 
         result = getPluginManager().load(target);
         if (!result.success()) {
             sender.sendMessage(result.messageId(), result.messageArgs().length == 0 ? new Object[]{target.getName()} : result.messageArgs());
+            reloadDependents(sender, unloadedDependents);
             return false;
         }
 
+        if (!reloadDependents(sender, unloadedDependents)) return false;
+
         sender.sendMessage("reload.reloaded", target.getName());
         return true;
+    }
+
+    private boolean reloadDependents(CommandSender sender, List<Plugin> dependents) {
+        for (var i = dependents.size() - 1; i >= 0; i--) {
+            var dependent = dependents.get(i);
+
+            var result = getPluginManager().load(dependent);
+            if (result.success()) continue;
+
+            sender.sendMessage(result.messageId(), result.messageArgs().length == 0 ? new Object[]{dependent.getName()} : result.messageArgs());
+            return false;
+        }
+
+        return true;
+    }
+
+    private List<Plugin> findEnabledDependents(Plugin target) {
+        var dependents = new ArrayList<Plugin>();
+        var visited = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+        visited.add(target.getName());
+        collectEnabledDependents(target.getName(), dependents, visited);
+        return dependents;
+    }
+
+    private void collectEnabledDependents(String targetName, List<Plugin> dependents, Set<String> visited) {
+        for (var plugin : getPluginManager().getPlugins()) {
+            if (plugin == null || !plugin.isEnabled()) continue;
+            if (getPluginManager().isIgnored(plugin)) continue;
+            if (visited.contains(plugin.getName())) continue;
+            if (!dependsOn(plugin, targetName)) continue;
+
+            visited.add(plugin.getName());
+            collectEnabledDependents(plugin.getName(), dependents, visited);
+            dependents.add(plugin);
+        }
+    }
+
+    private boolean dependsOn(Plugin plugin, String targetName) {
+        return containsIgnoreCase(plugin.getDepend(), targetName)
+                || containsIgnoreCase(plugin.getSoftDepend(), targetName);
+    }
+
+    private boolean containsIgnoreCase(List<String> values, String expected) {
+        return values != null && values.stream().anyMatch(value -> value.equalsIgnoreCase(expected));
     }
 
 }

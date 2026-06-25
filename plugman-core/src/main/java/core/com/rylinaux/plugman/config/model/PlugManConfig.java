@@ -18,7 +18,7 @@ public class PlugManConfig {
      * Configuration version for migration purposes
      */
     @JsonProperty("version")
-    private int version = 4;
+    private int version = 5;
 
     /**
      * Auto-load configuration settings

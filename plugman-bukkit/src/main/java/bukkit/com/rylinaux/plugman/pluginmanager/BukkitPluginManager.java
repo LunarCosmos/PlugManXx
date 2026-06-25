@@ -540,6 +540,8 @@ public class BukkitPluginManager extends BasePluginManager {
     @ApiStatus.Internal
     @Override
     public synchronized void syncCommands() {
+        if (deferCommandSyncIfBatching()) return;
+
         syncCommandsRunnable.run();
         Bukkit.getOnlinePlayers().forEach(Player::updateCommands);
     }

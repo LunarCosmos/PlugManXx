@@ -21,7 +21,9 @@ public class MessageMigrationService {
             "&9Paper Plugins (&b{0}&9): {1}",
             "&9Bukkit Plugins (&e{0}&9): {1}",
             "&c{0} could not be enabled. Check the server log for the plugin error.",
-            "&cCould not load {0}. Missing required dependencies: {1}");
+            "&cCould not load {0}. Missing required dependencies: {1}",
+            "&cCould not reload {0}; active plugins depend on it: {1}. Reload or stop those plugins first, or restart the server.",
+            "&cCould not restart {0}; active plugins depend on it: {1}. Restart or stop those plugins first, or restart the server.");
     private static final MessageDefaults GERMAN_MESSAGES = new MessageDefaults(
             "&9Paper-Plugins (&b{0}&9): {1}",
             "&9Bukkit-Plugins (&e{0}&9): {1}",
@@ -50,6 +52,10 @@ public class MessageMigrationService {
         }
     }
 
+    public void migrateToVersion5() {
+        migrateToVersion4();
+    }
+
     private void migrateMessagesFile(File messagesFile, MessageDefaults defaults) {
         if (!messagesFile.exists()) return;
 
@@ -73,6 +79,8 @@ public class MessageMigrationService {
         changed |= addMissingMessageEntry(updatedLines, "list", "bukkit", defaults.bukkitMessage());
         changed |= addMissingMessageEntry(updatedLines, "enable", "failed", defaults.enableFailedMessage());
         changed |= addMissingMessageEntry(updatedLines, "load", "missing-dependencies", defaults.missingDependenciesMessage());
+        changed |= addMissingMessageEntry(updatedLines, "reload", "blocked-dependents", defaults.reloadBlockedDependentsMessage());
+        changed |= addMissingMessageEntry(updatedLines, "restart", "blocked-dependents", defaults.restartBlockedDependentsMessage());
 
         return changed ? updatedLines : null;
     }
@@ -124,6 +132,19 @@ public class MessageMigrationService {
     private record MessageDefaults(String paperMessage,
                                    String bukkitMessage,
                                    String enableFailedMessage,
-                                   String missingDependenciesMessage) {
+                                   String missingDependenciesMessage,
+                                   String reloadBlockedDependentsMessage,
+                                   String restartBlockedDependentsMessage) {
+        MessageDefaults(String paperMessage,
+                        String bukkitMessage,
+                        String enableFailedMessage,
+                        String missingDependenciesMessage) {
+            this(paperMessage,
+                    bukkitMessage,
+                    enableFailedMessage,
+                    missingDependenciesMessage,
+                    DEFAULT_MESSAGES.reloadBlockedDependentsMessage(),
+                    DEFAULT_MESSAGES.restartBlockedDependentsMessage());
+        }
     }
 }

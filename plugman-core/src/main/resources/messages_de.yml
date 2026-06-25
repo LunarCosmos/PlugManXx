@@ -81,9 +81,11 @@ lookup:
 reload:
   all: '&9Alle Plugins wurden neu geladen.'
   all-failed: '&cEinige Plugins konnten nicht neu geladen werden: {0}'
+  blocked-dependents: '&c{0} konnte nicht neu geladen werden; aktive Plugins hängen davon ab: {1}. Lade oder stoppe diese Plugins zuerst, oder starte den Server neu.'
   reloaded: '&9{0} wurde neu geladen.'
 restart:
   all: '&9Alle Plugins wurden neu gestartet.'
+  blocked-dependents: '&c{0} konnte nicht neu gestartet werden; aktive Plugins hängen davon ab: {1}. Starte oder stoppe diese Plugins zuerst, oder starte den Server neu.'
   restarted: '&9{0} wurde neu gestartet.'
 unload:
   failed: '&cKonnte {0} nicht entladen.'
