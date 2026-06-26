@@ -17,6 +17,8 @@ public class MessageMigrationService {
     public static final String GERMAN_MESSAGES_FILE = "messages_de.yml";
 
     private static final String MESSAGES_FOLDER = "messages";
+    private static final String ERROR_SECTION = "error";
+    private static final String USAGE_SECTION = "usage";
     private static final MessageDefaults DEFAULT_MESSAGES = new MessageDefaults(
             "&9Paper Plugins (&b{0}&9): {1}",
             "&9Bukkit Plugins (&e{0}&9): {1}",
@@ -106,15 +108,15 @@ public class MessageMigrationService {
         changed |= addMissingMessageEntry(updatedLines, "list", "paper", defaults.paperMessage());
         changed |= addMissingMessageEntry(updatedLines, "list", "bukkit", defaults.bukkitMessage());
         changed |= addMissingMessageEntry(updatedLines, "enable", "failed", defaults.enableFailedMessage());
-        changed |= addMissingMessageEntry(updatedLines, "error", "ignored", defaults.errorIgnoredMessage());
-        changed |= addMissingMessageEntry(updatedLines, "error", "invalid-plugin", defaults.errorInvalidPluginMessage());
-        changed |= addMissingMessageEntry(updatedLines, "error", "no-permission", defaults.errorNoPermissionMessage());
-        changed |= addMissingMessageEntry(updatedLines, "error", "specify-plugin", defaults.errorSpecifyPluginMessage());
-        changed |= addMissingMessageEntry(updatedLines, "error", "specify-command", defaults.errorSpecifyCommandMessage());
-        changed |= addMissingMessageEntry(updatedLines, "error", "paper-plugin", defaults.errorPaperPluginMessage());
-        changed |= addMissingNestedMessageEntry(updatedLines, "error", "usage", "command", defaults.errorUsageCommandMessage());
-        changed |= addMissingNestedMessageEntry(updatedLines, "error", "usage", "description", defaults.errorUsageDescriptionMessage());
-        changed |= addMissingNestedMessageEntry(updatedLines, "error", "usage", "usage", defaults.errorUsageUsageMessage());
+        changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "ignored", defaults.errorIgnoredMessage());
+        changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "invalid-plugin", defaults.errorInvalidPluginMessage());
+        changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "no-permission", defaults.errorNoPermissionMessage());
+        changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "specify-plugin", defaults.errorSpecifyPluginMessage());
+        changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "specify-command", defaults.errorSpecifyCommandMessage());
+        changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "paper-plugin", defaults.errorPaperPluginMessage());
+        changed |= addMissingNestedMessageEntry(updatedLines, ERROR_SECTION, USAGE_SECTION, "command", defaults.errorUsageCommandMessage());
+        changed |= addMissingNestedMessageEntry(updatedLines, ERROR_SECTION, USAGE_SECTION, "description", defaults.errorUsageDescriptionMessage());
+        changed |= addMissingNestedMessageEntry(updatedLines, ERROR_SECTION, USAGE_SECTION, USAGE_SECTION, defaults.errorUsageUsageMessage());
         changed |= addMissingMessageEntry(updatedLines, "load", "missing-dependencies", defaults.missingDependenciesMessage());
         changed |= addMissingMessageEntry(updatedLines, "reload", "blocked-dependents", defaults.reloadBlockedDependentsMessage());
         changed |= addMissingMessageEntry(updatedLines, "reload", "confirm-all", defaults.reloadConfirmAllMessage());
