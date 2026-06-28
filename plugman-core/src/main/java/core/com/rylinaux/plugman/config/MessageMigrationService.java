@@ -19,9 +19,16 @@ public class MessageMigrationService {
     private static final String MESSAGES_FOLDER = "messages";
     private static final String ERROR_SECTION = "error";
     private static final String USAGE_SECTION = "usage";
+    private static final String HELP_SECTION = "help";
+    private static final String DEPS_SECTION = "deps";
     private static final MessageDefaults DEFAULT_MESSAGES = new MessageDefaults(
             "&9Paper Plugins (&b{0}&9): {1}",
             "&9Bukkit Plugins (&e{0}&9): {1}",
+            "&7- &a/{0} deps <plugin> &f- &7Show plugin dependency relationships.",
+            "Plugin Dependencies: {0}",
+            "&7- Depends: &a{0}",
+            "&7- SoftDepends: &a{0}",
+            "&7- Used by: &a{0}",
             "&c{0} could not be enabled. Check the server log for the plugin error.",
             "&cPlugMan is configured to ignore that plugin.",
             "&cThat is not a valid plugin.",
@@ -40,6 +47,11 @@ public class MessageMigrationService {
     private static final MessageDefaults GERMAN_MESSAGES = new MessageDefaults(
             "&9Paper-Plugins (&b{0}&9): {1}",
             "&9Bukkit-Plugins (&e{0}&9): {1}",
+            "&7- &a/{0} deps <plugin> &f- &7Zeigt Plugin-Abhängigkeiten an.",
+            "Plugin-Abhängigkeiten: {0}",
+            "&7- Abhängigkeiten: &a{0}",
+            "&7- Soft-Abhängigkeiten: &a{0}",
+            "&7- Genutzt von: &a{0}",
             "&c{0} konnte nicht aktiviert werden. Prüfe den Server-Log für den Plugin-Fehler.",
             "&cPlugMan ist darauf konfiguriert, dieses Plugin zu ignorieren.",
             "&cDies ist kein gültiges Plugin.",
@@ -107,6 +119,11 @@ public class MessageMigrationService {
 
         changed |= addMissingMessageEntry(updatedLines, "list", "paper", defaults.paperMessage());
         changed |= addMissingMessageEntry(updatedLines, "list", "bukkit", defaults.bukkitMessage());
+        changed |= addMissingMessageEntry(updatedLines, HELP_SECTION, DEPS_SECTION, defaults.helpDepsMessage());
+        changed |= addMissingMessageEntry(updatedLines, DEPS_SECTION, "header", defaults.depsHeaderMessage());
+        changed |= addMissingMessageEntry(updatedLines, DEPS_SECTION, "depends", defaults.depsDependsMessage());
+        changed |= addMissingMessageEntry(updatedLines, DEPS_SECTION, "softdepends", defaults.depsSoftDependsMessage());
+        changed |= addMissingMessageEntry(updatedLines, DEPS_SECTION, "used-by", defaults.depsUsedByMessage());
         changed |= addMissingMessageEntry(updatedLines, "enable", "failed", defaults.enableFailedMessage());
         changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "ignored", defaults.errorIgnoredMessage());
         changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "invalid-plugin", defaults.errorInvalidPluginMessage());
@@ -227,6 +244,11 @@ public class MessageMigrationService {
 
     private record MessageDefaults(String paperMessage,
                                    String bukkitMessage,
+                                   String helpDepsMessage,
+                                   String depsHeaderMessage,
+                                   String depsDependsMessage,
+                                   String depsSoftDependsMessage,
+                                   String depsUsedByMessage,
                                    String enableFailedMessage,
                                    String errorIgnoredMessage,
                                    String errorInvalidPluginMessage,

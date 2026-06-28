@@ -48,6 +48,7 @@ help:
   list: '&7- &a/{0} list [-v] &f- &7List all plugins (-v shows versions).'
   dump: '&7- &a/{0} dump &f- &7Dump plugin names and versions to file.'
   info: '&7- &a/{0} info <plugin> &f- &7Get info on a plugin.'
+  deps: '&7- &a/{0} deps <plugin> &f- &7Show plugin dependency relationships.'
   usage: '&7- &a/{0} usage <plugin> &f- &7List commands a plugin has registered.'
   lookup: '&7- &a/{0} lookup <command> &f- &7Find the plugin a command is registered to.'
   enable: '&7- &a/{0} enable <plugin|all> &f- &7Enable a plugin.'
@@ -64,6 +65,11 @@ info:
   status: '&7- Status: {0}'
   depends: '&7- Depends: {0}'
   softdepends: '&7- SoftDepends: &a{0}'
+deps:
+  header: 'Plugin Dependencies: {0}'
+  depends: '&7- Depends: &a{0}'
+  softdepends: '&7- SoftDepends: &a{0}'
+  used-by: '&7- Used by: &a{0}'
 list:
   paper: '&9Paper Plugins (&b{0}&9): {1}'
   bukkit: '&9Bukkit Plugins (&e{0}&9): {1}'

@@ -48,6 +48,7 @@ help:
   list: '&7- &a/plugman list [-v] &f- &7列出所有插件 (-v 显示版本)。'
   dump: '&7- &a/plugman dump &f- &7将插件名称和版本导出到文件。'
   info: '&7- &a/plugman info <plugin> &f- &7获取插件信息。'
+  deps: '&7- &a/plugman deps <plugin> &f- &7显示插件依赖关系。'
   usage: '&7- &a/plugman usage <plugin> &f- &7列出插件注册的命令。'
   lookup: '&7- &a/plugman lookup <command> &f- &7查找注册该命令的插件。'
   enable: '&7- &a/plugman enable <plugin|all> &f- &7启用插件。'
@@ -64,6 +65,11 @@ info:
   status: '&7- 状态: {0}'
   depends: '&7- 依赖: {0}'
   softdepends: '&7- 软依赖: &a{0}'
+deps:
+  header: '插件依赖关系: {0}'
+  depends: '&7- 依赖: &a{0}'
+  softdepends: '&7- 软依赖: &a{0}'
+  used-by: '&7- 被使用于: &a{0}'
 list:
   paper: '&9Paper 插件 (&b{0}&9): {1}'
   bukkit: '&9Bukkit 插件 (&e{0}&9): {1}'

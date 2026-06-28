@@ -48,6 +48,7 @@ help:
   list: '&7- &a/plugman list [-v] &f- &7すべてのプラグインを一覧表示します (-v でバージョン表示)。'
   dump: '&7- &a/plugman dump &f- &7プラグイン名とバージョンをファイルへ出力します。'
   info: '&7- &a/plugman info <plugin> &f- &7プラグイン情報を表示します。'
+  deps: '&7- &a/plugman deps <plugin> &f- &7プラグインの依存関係を表示します。'
   usage: '&7- &a/plugman usage <plugin> &f- &7プラグインが登録したコマンドを表示します。'
   lookup: '&7- &a/plugman lookup <command> &f- &7コマンドを登録しているプラグインを検索します。'
   enable: '&7- &a/plugman enable <plugin|all> &f- &7プラグインを有効化します。'
@@ -64,6 +65,11 @@ info:
   status: '&7- 状態: {0}'
   depends: '&7- 依存: {0}'
   softdepends: '&7- 任意依存: &a{0}'
+deps:
+  header: 'プラグイン依存関係: {0}'
+  depends: '&7- 依存: &a{0}'
+  softdepends: '&7- 任意依存: &a{0}'
+  used-by: '&7- 使用元: &a{0}'
 list:
   paper: '&9Paper プラグイン (&b{0}&9): {1}'
   bukkit: '&9Bukkit プラグイン (&e{0}&9): {1}'

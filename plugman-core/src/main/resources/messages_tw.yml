@@ -48,6 +48,7 @@ help:
   list: '&7- &a/plugman list [-v] &f- &7列出所有外掛 (-v 顯示版本)。'
   dump: '&7- &a/plugman dump &f- &7將外掛名稱與版本匯出到檔案。'
   info: '&7- &a/plugman info <plugin> &f- &7取得外掛資訊。'
+  deps: '&7- &a/plugman deps <plugin> &f- &7顯示外掛依賴關係。'
   usage: '&7- &a/plugman usage <plugin> &f- &7列出外掛註冊的指令。'
   lookup: '&7- &a/plugman lookup <command> &f- &7尋找註冊該指令的外掛。'
   enable: '&7- &a/plugman enable <plugin|all> &f- &7啟用外掛。'
@@ -64,6 +65,11 @@ info:
   status: '&7- 狀態: {0}'
   depends: '&7- 依賴: {0}'
   softdepends: '&7- 軟依賴: &a{0}'
+deps:
+  header: '外掛依賴關係: {0}'
+  depends: '&7- 依賴: &a{0}'
+  softdepends: '&7- 軟依賴: &a{0}'
+  used-by: '&7- 被使用於: &a{0}'
 list:
   paper: '&9Paper 外掛 (&b{0}&9): {1}'
   bukkit: '&9Bukkit 外掛 (&e{0}&9): {1}'

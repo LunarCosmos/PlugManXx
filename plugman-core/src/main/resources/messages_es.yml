@@ -48,6 +48,7 @@ help:
   list: '&7- &a/plugman list [-v] &f- &7Lista todos los plugins (-v muestra versiones).'
   dump: '&7- &a/plugman dump &f- &7Volca los nombres y versiones de plugins a un archivo.'
   info: '&7- &a/plugman info <plugin> &f- &7Muestra información de un plugin.'
+  deps: '&7- &a/plugman deps <plugin> &f- &7Muestra relaciones de dependencias del plugin.'
   usage: '&7- &a/plugman usage <plugin> &f- &7Lista los comandos registrados de un plugin.'
   lookup: '&7- &a/plugman lookup <command> &f- &7Encuentra qué plugin registró un comando.'
   enable: '&7- &a/plugman enable <plugin|all> &f- &7Habilita un plugin.'
@@ -64,6 +65,11 @@ info:
   status: '&7- Estado: {0}'
   depends: '&7- Dependencias: {0}'
   softdepends: '&7- Dependencias opcionales: &a{0}'
+deps:
+  header: 'Dependencias del plugin: {0}'
+  depends: '&7- Dependencias: &a{0}'
+  softdepends: '&7- Dependencias opcionales: &a{0}'
+  used-by: '&7- Usado por: &a{0}'
 list:
   paper: '&9Plugins Paper (&b{0}&9): {1}'
   bukkit: '&9Plugins Bukkit (&e{0}&9): {1}'

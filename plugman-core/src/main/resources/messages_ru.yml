@@ -48,6 +48,7 @@ help:
   list: '&7- &a/plugman list [-v] &f- &7Показать все плагины (-v показывает версии).'
   dump: '&7- &a/plugman dump &f- &7Записать имена и версии плагинов в файл.'
   info: '&7- &a/plugman info <plugin> &f- &7Показать информацию о плагине.'
+  deps: '&7- &a/plugman deps <plugin> &f- &7Показать зависимости плагина.'
   usage: '&7- &a/plugman usage <plugin> &f- &7Показать команды, зарегистрированные плагином.'
   lookup: '&7- &a/plugman lookup <command> &f- &7Найти плагин, которому принадлежит команда.'
   enable: '&7- &a/plugman enable <plugin|all> &f- &7Включить плагин.'
@@ -64,6 +65,11 @@ info:
   status: '&7- Статус: {0}'
   depends: '&7- Зависимости: {0}'
   softdepends: '&7- Мягкие зависимости: &a{0}'
+deps:
+  header: 'Зависимости плагина: {0}'
+  depends: '&7- Зависимости: &a{0}'
+  softdepends: '&7- Мягкие зависимости: &a{0}'
+  used-by: '&7- Используется в: &a{0}'
 list:
   paper: '&9Paper-плагины (&b{0}&9): {1}'
   bukkit: '&9Bukkit-плагины (&e{0}&9): {1}'

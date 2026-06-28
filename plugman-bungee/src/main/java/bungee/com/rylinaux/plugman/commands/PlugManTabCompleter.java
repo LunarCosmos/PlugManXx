@@ -27,7 +27,7 @@ public class PlugManTabCompleter implements TabExecutor {
     /**
      * Valid command names.
      */
-    private static final String[] COMMANDS = {"check", "disable", "dump", "enable", "help", "info", "list", "load", "lookup", "reload", "restart", "unload", "usage"};
+    private static final String[] COMMANDS = {"check", "deps", "disable", "dump", "enable", "help", "info", "list", "load", "lookup", "reload", "restart", "unload", "usage"};
 
     @Override
     public Iterable<String> onTabComplete(CommandSender sender, String[] args) {
