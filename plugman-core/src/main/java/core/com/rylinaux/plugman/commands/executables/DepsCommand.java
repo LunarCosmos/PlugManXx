@@ -63,7 +63,7 @@ public class DepsCommand extends AbstractCommand {
     /**
      * The sub permissions of the command.
      */
-    public static final String[] SUB_PERMISSIONS = {""};
+    protected static final String[] SUB_PERMISSIONS = {""};
 
     /**
      * Construct out object.
