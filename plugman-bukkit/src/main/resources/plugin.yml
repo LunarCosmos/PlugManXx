@@ -6,10 +6,6 @@ authors: [ rylinaux, TestAccount666 ]
 api-version: 1.13
 folia-supported: true
 provides: [ PlugMan ]
-libraries:
-  - com.fasterxml.jackson.core:jackson-databind:${jackson.version}
-  - com.fasterxml.jackson.core:jackson-core:${jackson.version}
-  - com.fasterxml.jackson.core:jackson-annotations:${jackson.version}
 load: STARTUP
 softdepend:
   - PlugMan
