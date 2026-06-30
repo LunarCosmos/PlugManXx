@@ -18,6 +18,7 @@ public class PaperPlugManLoader implements PluginLoader {
     private static final int MAX_LIBRARY_LOADER_VERSION = 2602;
     private static final String JACKSON_VERSION = "2.13.5";
     private static final String SNAKEYAML_VERSION = "2.0";
+    private static final String COMPILE_SCOPE = "compile";
 
     @Override
     public void classloader(PluginClasspathBuilder classpathBuilder) {
@@ -26,10 +27,10 @@ public class PaperPlugManLoader implements PluginLoader {
         var resolver = new MavenLibraryResolver();
         resolver.addRepository(new RemoteRepository.Builder("paper", "default", "https://repo.papermc.io/repository/maven-public/").build());
         resolver.addRepository(new RemoteRepository.Builder("central", "default", "https://repo.maven.apache.org/maven2/").build());
-        resolver.addDependency(new Dependency(new DefaultArtifact(jacksonArtifact("jackson-databind")), "compile"));
-        resolver.addDependency(new Dependency(new DefaultArtifact(jacksonArtifact("jackson-core")), "compile"));
-        resolver.addDependency(new Dependency(new DefaultArtifact(jacksonArtifact("jackson-annotations")), "compile"));
-        resolver.addDependency(new Dependency(new DefaultArtifact(snakeyamlArtifact()), "compile"));
+        resolver.addDependency(new Dependency(new DefaultArtifact(jacksonArtifact("jackson-databind")), COMPILE_SCOPE));
+        resolver.addDependency(new Dependency(new DefaultArtifact(jacksonArtifact("jackson-core")), COMPILE_SCOPE));
+        resolver.addDependency(new Dependency(new DefaultArtifact(jacksonArtifact("jackson-annotations")), COMPILE_SCOPE));
+        resolver.addDependency(new Dependency(new DefaultArtifact(snakeyamlArtifact()), COMPILE_SCOPE));
 
         classpathBuilder.addLibrary(resolver);
     }
