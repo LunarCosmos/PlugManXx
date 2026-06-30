@@ -41,9 +41,12 @@ import io.papermc.paper.plugin.configuration.PluginMeta;
 import lombok.experimental.Delegate;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
+import org.bukkit.Keyed;
+import org.bukkit.NamespacedKey;
 import org.bukkit.command.Command;
 import org.bukkit.event.EventException;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.inventory.Recipe;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.YAMLException;
 import paper.com.rylinaux.plugman.util.PaperReflectionNames;
@@ -55,8 +58,10 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -816,9 +821,29 @@ public class PaperPluginManager extends BasePluginManager {
 
         cleanupListeners(plugin, unloadData);
         cleanupCommands(plugin, unloadData);
+        cleanupPluginRecipes(plugin);
         removeFromPluginLists(plugin, unloadData);
 
         return new Tuple<>(unloadData, new PluginResult(true, "unload.common-success"));
+    }
+
+    private void cleanupPluginRecipes(Plugin plugin) {
+        var namespace = plugin.getName().toLowerCase(Locale.ROOT);
+        var recipes = collectPluginRecipes(namespace);
+        recipes.forEach(Bukkit::removeRecipe);
+    }
+
+    private List<NamespacedKey> collectPluginRecipes(String namespace) {
+        var recipes = new ArrayList<NamespacedKey>();
+        var iterator = Bukkit.recipeIterator();
+
+        while (iterator.hasNext()) collectPluginRecipe(iterator.next(), namespace, recipes);
+
+        return recipes;
+    }
+
+    private void collectPluginRecipe(Recipe recipe, String namespace, List<NamespacedKey> recipes) {
+        if (recipe instanceof Keyed keyed && keyed.getKey().getNamespace().equals(namespace)) recipes.add(keyed.getKey());
     }
 
     private void cleanupListeners(Plugin plugin, CommonUnloadData data) {
