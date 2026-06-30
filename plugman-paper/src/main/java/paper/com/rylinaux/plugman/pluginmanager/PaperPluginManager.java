@@ -185,21 +185,32 @@ public class PaperPluginManager extends BasePluginManager {
     public PluginResult load(String name) {
         var preflight = preflightPluginLoad(name);
         if (!preflight.result().success()) return preflight.result();
-
-        var pluginFile = preflight.pluginFile();
-        PlugManBukkit.getInstance().getLogger().info("Attempting to load " + pluginFile.getPath());
-
-        var target = loadPluginWithPaper(pluginFile);
-        if (target == null) {
-            if (preflight.descriptor().paperPlugin()) return new PluginResult(false, "load.invalid-plugin", preflight.descriptor().name());
-            target = loadAndEnablePlugin(pluginFile, true);
-            if (target == null) return new PluginResult(false, "load.invalid-plugin", preflight.descriptor().name());
+        if (!beginPluginLoad(preflight.descriptor())) {
+            return new PluginResult(false, "load.missing-dependencies", preflight.descriptor().name(), preflight.descriptor().name());
         }
 
-        scheduleCommandLoading();
-        PlugManBukkit.getInstance().getFilePluginMap().put(pluginFile.getName(), target.getName());
+        try {
+            var dependencyResult = loadRequiredDependencies(preflight.descriptor());
+            if (!dependencyResult.success()) return dependencyResult;
 
-        return new PluginResult(true, "load.loaded");
+            var pluginFile = preflight.pluginFile();
+            PlugManBukkit.getInstance().getLogger().info("Attempting to load " + pluginFile.getPath());
+
+            var target = loadPluginWithPaper(pluginFile);
+            if (target == null) {
+                if (getPluginByName(preflight.descriptor().name()) != null) return new PluginResult(false, "load.invalid-plugin", preflight.descriptor().name());
+                if (preflight.descriptor().paperPlugin()) return new PluginResult(false, "load.invalid-plugin", preflight.descriptor().name());
+                target = loadAndEnablePlugin(pluginFile, true);
+                if (target == null) return new PluginResult(false, "load.invalid-plugin", preflight.descriptor().name());
+            }
+
+            scheduleCommandLoading();
+            PlugManBukkit.getInstance().getFilePluginMap().put(pluginFile.getName(), target.getName());
+
+            return new PluginResult(true, "load.loaded");
+        } finally {
+            finishPluginLoad(preflight.descriptor());
+        }
     }
 
     @Override
@@ -223,6 +234,10 @@ public class PaperPluginManager extends BasePluginManager {
 
             enablePluginWithPaperCommandContext(target, () ->
                     invokePaperInstanceManagerEnable(instanceManager, target));
+            if (!target.isEnabled()) {
+                PlugManBukkit.getInstance().getLogger().severe("Plugin failed to enable after Paper load: " + pluginFile.getName());
+                return null;
+            }
 
             return new BukkitPlugin(target);
         } catch (Exception exception) {
@@ -290,6 +305,10 @@ public class PaperPluginManager extends BasePluginManager {
 
             debugStep = "enable plugin";
             enablePluginWithPaperCommandContext(target, () -> org.bukkit.Bukkit.getPluginManager().enablePlugin(target));
+            if (!target.isEnabled()) {
+                PlugManBukkit.getInstance().getLogger().severe("Plugin failed to enable after Paper provider load: " + pluginFile.getName());
+                return null;
+            }
             debugPaperReload("enabled plugin " + target.getName());
             debugKnownPaperCommands(target, "after enable before sync");
             debugStep = "fire paper command lifecycle";

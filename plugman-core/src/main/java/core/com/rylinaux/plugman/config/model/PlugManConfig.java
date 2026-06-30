@@ -62,6 +62,25 @@ public class PlugManConfig {
     @JsonProperty("paperReloadDebug")
     private boolean paperReloadDebug = false;
 
+    /**
+     * Controls which dependent plugins are automatically reloaded with a target plugin.
+     * Supported values: ALL, REQUIRED_ONLY, OFF.
+     */
+    @JsonProperty("reloadDependentsMode")
+    private String reloadDependentsMode = "REQUIRED_ONLY";
+
+    public boolean shouldReloadHardDependents() {
+        return !isReloadDependentsMode("OFF");
+    }
+
+    public boolean shouldReloadSoftDependents() {
+        return isReloadDependentsMode("ALL");
+    }
+
+    private boolean isReloadDependentsMode(String expectedMode) {
+        return reloadDependentsMode != null && reloadDependentsMode.equalsIgnoreCase(expectedMode);
+    }
+
     @Data
     public static class GenericLoadConfig {
         @JsonProperty("enabled")

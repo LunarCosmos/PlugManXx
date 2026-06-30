@@ -22,8 +22,10 @@ commands:
       /plugman list [-v]
       /plugman check <plugin|all> [-f]
       /plugman lookup <command>
+      /plugman deps <plugin>
       /plugman (enable|disable|restart) <plugin|all>
       /plugman (info|usage|load|reload|unload) <plugin>
+      /plugman reloadmode [ALL|REQUIRED_ONLY|OFF]
 permissions:
   plugman.admin:
     description: Allows use of all PlugMan commands.
@@ -35,6 +37,7 @@ permissions:
       plugman.dump: true
       plugman.info: true
       plugman.usage: true
+      plugman.deps: true
       plugman.lookup: true
       plugman.enable: true
       plugman.enable.all: true
@@ -42,6 +45,7 @@ permissions:
       plugman.disable.all: true
       plugman.restart: true
       plugman.restart.all: true
+      plugman.reloadmode: true
       plugman.load: true
       plugman.reload: true
       plugman.unload: true
@@ -65,6 +69,9 @@ permissions:
   plugman.usage:
     description: Allows use of the usage command.
     default: op
+  plugman.deps:
+    description: Allows use of the deps command.
+    default: op
   plugman.lookup:
     description: Allows use of the lookup command.
     default: op
@@ -85,6 +92,9 @@ permissions:
     default: op
   plugman.restart.all:
     description: Allows use of the restart all command.
+    default: op
+  plugman.reloadmode:
+    description: Allows use of the reload mode command.
     default: op
   plugman.load:
     description: Allows use of the load command.

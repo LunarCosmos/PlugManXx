@@ -181,12 +181,18 @@ public class PlugManConfigurationManager {
     /**
      * Save Jackson configuration to file
      */
-    private void saveJacksonConfiguration() {
+    public boolean savePlugManConfig() {
+        return saveJacksonConfiguration();
+    }
+
+    private boolean saveJacksonConfiguration() {
         try {
             var configFile = new File(configProvider.getDataFolder(), "config.yml");
             jacksonConfigService.savePlugManConfig(plugManConfig, configFile);
+            return true;
         } catch (Exception e) {
             logger.severe("Failed to save Jackson configuration: " + e.getMessage());
+            return false;
         }
     }
 

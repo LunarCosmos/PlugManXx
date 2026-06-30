@@ -56,6 +56,7 @@ help:
   restart: '&7- &a/plugman restart <plugin|all> &f- &7プラグインを再起動します。'
   load: '&7- &a/plugman load <plugin> &f- &7プラグインを読み込みます。'
   reload: '&7- &a/plugman reload <plugin|all> &f- &7プラグインをリロードします。'
+  reloadmode: '&7- &a/plugman reloadmode [ALL|REQUIRED_ONLY|OFF] &f- &7依存プラグインのリロード動作を表示または変更します。'
   unload: '&7- &a/plugman unload <plugin> &f- &7プラグインをアンロードします。'
   check: '&7- &a/plugman check <plugin|all> [-f] &f- &7プラグインが最新か確認します (-f ですべてをファイルへ出力)。'
 info:
@@ -90,6 +91,11 @@ reload:
   blocked-dependents: '&c{0} をリロードできませんでした。依存している有効なプラグインがあります: {1}。先にそれらをリロードまたは停止するか、サーバーを再起動してください。'
   confirm-all: '&c{0} 個のプラグインをリロードすると、サーバーがクラッシュまたは不安定になる可能性があります。確認するには &e/plugman reload all {1}&c を実行してください。'
   reloaded: '&9{0} をリロードしました。'
+reloadmode:
+  changed: '&9依存リロードモードを &a{0}&9 に設定しました。'
+  current: '&9現在の依存リロードモード: &a{0}&9。'
+  invalid: '&c無効な依存リロードモードです: {0}。ALL、REQUIRED_ONLY、OFF のいずれかを使用してください。'
+  save-failed: '&c依存リロードモードを保存できませんでした。サーバーログを確認してください。'
 restart:
   all: '&9すべてのプラグインを再起動しました。'
   all-failed: '&c一部のプラグインの再起動に失敗しました: {0}'

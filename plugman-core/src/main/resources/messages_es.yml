@@ -56,6 +56,7 @@ help:
   restart: '&7- &a/plugman restart <plugin|all> &f- &7Reinicia un plugin.'
   load: '&7- &a/plugman load <plugin> &f- &7Carga un plugin.'
   reload: '&7- &a/plugman reload <plugin|all> &f- &7Recarga un plugin.'
+  reloadmode: '&7- &a/plugman reloadmode [ALL|REQUIRED_ONLY|OFF] &f- &7Muestra o cambia el modo de recarga de dependientes.'
   unload: '&7- &a/plugman unload <plugin> &f- &7Descarga un plugin.'
   check: '&7- &a/plugman check <plugin|all> [-f] &f- &7Revisa si un plugin está actualizado (-f vuelca un archivo para todos).'
 info:
@@ -90,6 +91,11 @@ reload:
   blocked-dependents: '&cNo se pudo recargar {0}; hay plugins activos que dependen de él: {1}. Recarga o detén esos plugins primero, o reinicia el servidor.'
   confirm-all: '&cRecargar {0} plugins puede bloquear o desestabilizar el servidor. Ejecuta &e/plugman reload all {1}&c para confirmar.'
   reloaded: '&9{0} ha sido recargado.'
+reloadmode:
+  changed: '&9Modo de recarga de dependientes cambiado a &a{0}&9.'
+  current: '&9Modo actual de recarga de dependientes: &a{0}&9.'
+  invalid: '&cModo de recarga de dependientes inválido: {0}. Usa ALL, REQUIRED_ONLY u OFF.'
+  save-failed: '&cNo se pudo guardar el modo de recarga de dependientes. Revisa el log del servidor.'
 restart:
   all: '&9Todos los plugins han sido reiniciados.'
   confirm-all: '&cReiniciar {0} plugins puede bloquear o desestabilizar el servidor. Ejecuta &e/plugman restart all {1}&c para confirmar.'

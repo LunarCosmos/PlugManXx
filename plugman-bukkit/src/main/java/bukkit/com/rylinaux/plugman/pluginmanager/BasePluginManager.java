@@ -47,9 +47,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarFile;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -61,6 +64,7 @@ import org.yaml.snakeyaml.Yaml;
  */
 public abstract class BasePluginManager implements PluginManager {
     private static final String PAPER_PLUGIN_YML = "paper-plugin.yml";
+    private final Set<String> loadingPlugins = ConcurrentHashMap.newKeySet();
     private int commandUpdateBatchDepth = 0;
     private boolean commandSyncPending = false;
 
@@ -169,15 +173,48 @@ public abstract class BasePluginManager implements PluginManager {
         var loadedPlugin = getPluginByName(descriptor.name());
         if (loadedPlugin != null) return PluginLoadPreflight.failed(new PluginResult(false, "load.already-loaded", loadedPlugin.getName()));
 
-        var missingDependencies = descriptor.requiredDependencies().stream()
-                .filter(dependency -> getPluginByName(dependency) == null)
+        var unavailableDependencies = descriptor.requiredDependencies().stream()
+                .filter(dependency -> !isDependencySatisfied(dependency))
+                .filter(dependency -> findPluginFile(dependency) == null)
                 .toList();
-        if (!missingDependencies.isEmpty()) {
+        if (!unavailableDependencies.isEmpty()) {
             return PluginLoadPreflight.failed(new PluginResult(false, "load.missing-dependencies",
-                    descriptor.name(), String.join(", ", missingDependencies)));
+                    descriptor.name(), String.join(", ", unavailableDependencies)));
         }
 
         return new PluginLoadPreflight(pluginFile, descriptor, new PluginResult(true, "validation.success"));
+    }
+
+    protected boolean beginPluginLoad(PluginDescriptor descriptor) {
+        return loadingPlugins.add(descriptor.name());
+    }
+
+    protected void finishPluginLoad(PluginDescriptor descriptor) {
+        loadingPlugins.remove(descriptor.name());
+    }
+
+    protected PluginResult loadRequiredDependencies(PluginDescriptor descriptor) {
+        for (var dependency : descriptor.requiredDependencies()) {
+            if (isDependencySatisfied(dependency)) continue;
+            if (loadingPlugins.contains(dependency)) {
+                return new PluginResult(false, "load.missing-dependencies", descriptor.name(), dependency);
+            }
+
+            var result = load(dependency);
+            if (result.success()) continue;
+
+            return result;
+        }
+
+        return new PluginResult(true, "validation.success");
+    }
+
+    private boolean isDependencySatisfied(String dependency) {
+        if (getPluginByName(dependency) != null) return true;
+
+        return Arrays.stream(org.bukkit.Bukkit.getPluginManager().getPlugins())
+                .anyMatch(plugin -> plugin.getDescription().getProvides().stream()
+                        .anyMatch(providedName -> providedName.equalsIgnoreCase(dependency)));
     }
 
     private String getBukkitPluginName(File file) {

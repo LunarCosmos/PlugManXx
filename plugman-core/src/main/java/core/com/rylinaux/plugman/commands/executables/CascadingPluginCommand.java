@@ -28,6 +28,7 @@ package core.com.rylinaux.plugman.commands.executables;
 
 import core.com.rylinaux.plugman.commands.AbstractCommand;
 import core.com.rylinaux.plugman.commands.CommandSender;
+import core.com.rylinaux.plugman.config.PlugManConfigurationManager;
 import core.com.rylinaux.plugman.plugins.Plugin;
 import core.com.rylinaux.plugman.services.ServiceRegistry;
 
@@ -181,6 +182,8 @@ abstract class CascadingPluginCommand extends AbstractCommand {
 
     private List<Plugin> findEnabledDependents(Plugin target) {
         var dependents = new ArrayList<Plugin>();
+        if (!get(PlugManConfigurationManager.class).getPlugManConfig().shouldReloadHardDependents()) return dependents;
+
         var visited = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
         visited.add(target.getName());
         collectEnabledDependents(target.getName(), dependents, visited);
@@ -201,8 +204,10 @@ abstract class CascadingPluginCommand extends AbstractCommand {
     }
 
     private boolean dependsOn(Plugin plugin, String targetName) {
-        return containsIgnoreCase(plugin.getDepend(), targetName)
-                || containsIgnoreCase(plugin.getSoftDepend(), targetName);
+        if (containsIgnoreCase(plugin.getDepend(), targetName)) return true;
+
+        return get(PlugManConfigurationManager.class).getPlugManConfig().shouldReloadSoftDependents()
+                && containsIgnoreCase(plugin.getSoftDepend(), targetName);
     }
 
     private boolean containsIgnoreCase(List<String> values, String expected) {

@@ -42,7 +42,7 @@ public class PlugManCommandHandler extends Command implements TabExecutor {
     /**
      * Valid command names.
      */
-    private static final String[] COMMANDS = {"check", "deps", "disable", "dump", "enable", "help", "info", "list", "load", "lookup", "reload", "restart", "unload", "usage"};
+    private static final String[] COMMANDS = {"check", "deps", "disable", "dump", "enable", "help", "info", "list", "load", "lookup", "reload", "reloadmode", "restart", "unload", "usage"};
     private TabExecutor tabCompleter = new PlugManTabCompleter();
 
     public PlugManCommandHandler() {
@@ -73,6 +73,7 @@ public class PlugManCommandHandler extends Command implements TabExecutor {
             case "enable", "load" -> new LoadCommand(plugManSender, registry);
             case "disable", "unload" -> new UnloadCommand(plugManSender, registry);
             case "restart", "reload" -> new ReloadCommand(plugManSender, registry);
+            case "reloadmode" -> new ReloadModeCommand(plugManSender, registry);
             case "check" -> new CheckCommand(plugManSender, registry);
             default -> new HelpCommand(plugManSender, registry);
         };

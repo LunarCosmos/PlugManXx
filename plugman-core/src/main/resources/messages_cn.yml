@@ -56,6 +56,7 @@ help:
   restart: '&7- &a/plugman restart <plugin|all> &f- &7重新启动插件。'
   load: '&7- &a/plugman load <plugin> &f- &7加载插件。'
   reload: '&7- &a/plugman reload <plugin|all> &f- &7重新加载插件。'
+  reloadmode: '&7- &a/plugman reloadmode [ALL|REQUIRED_ONLY|OFF] &f- &7查看或更改依赖重载模式。'
   unload: '&7- &a/plugman unload <plugin> &f- &7卸载插件。'
   check: '&7- &a/plugman check <plugin|all> [-f] &f- &7检查插件是否为最新 (-f 将全部导出到文件)。'
 info:
@@ -90,6 +91,11 @@ reload:
   blocked-dependents: '&c无法重新加载 {0}; 有启用中的插件依赖它: {1}。请先重新加载或停止那些插件，或重新启动服务器。'
   confirm-all: '&c重新加载 {0} 个插件可能会导致服务器崩溃或不稳定。运行 &e/plugman reload all {1}&c 以确认。'
   reloaded: '&9{0} 已重新加载。'
+reloadmode:
+  changed: '&9依赖重载模式已设置为 &a{0}&9。'
+  current: '&9当前依赖重载模式: &a{0}&9。'
+  invalid: '&c无效的依赖重载模式: {0}。请使用 ALL、REQUIRED_ONLY 或 OFF。'
+  save-failed: '&c无法保存依赖重载模式。请检查服务器日志。'
 restart:
   all: '&9所有插件已重新启动。'
   all-failed: '&c部分插件重新启动失败: {0}'

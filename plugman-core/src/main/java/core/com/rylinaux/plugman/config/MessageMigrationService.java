@@ -21,14 +21,20 @@ public class MessageMigrationService {
     private static final String USAGE_SECTION = "usage";
     private static final String HELP_SECTION = "help";
     private static final String DEPS_SECTION = "deps";
+    private static final String RELOAD_MODE_SECTION = "reloadmode";
     private static final MessageDefaults DEFAULT_MESSAGES = new MessageDefaults(
             "&9Paper Plugins (&b{0}&9): {1}",
             "&9Bukkit Plugins (&e{0}&9): {1}",
             "&7- &a/{0} deps <plugin> &f- &7Show plugin dependency relationships.",
+            "&7- &a/{0} reloadmode [ALL|REQUIRED_ONLY|OFF] &f- &7View or change dependent reload behavior.",
             "Plugin Dependencies: {0}",
             "&7- Depends: &a{0}",
             "&7- SoftDepends: &a{0}",
             "&7- Used by: &a{0}",
+            "&9Dependent reload mode set to &a{0}&9.",
+            "&9Current dependent reload mode: &a{0}&9.",
+            "&cInvalid dependent reload mode: {0}. Use ALL, REQUIRED_ONLY, or OFF.",
+            "&cCould not save dependent reload mode. Check the server log.",
             "&c{0} could not be enabled. Check the server log for the plugin error.",
             "&cPlugMan is configured to ignore that plugin.",
             "&cThat is not a valid plugin.",
@@ -48,10 +54,15 @@ public class MessageMigrationService {
             "&9Paper-Plugins (&b{0}&9): {1}",
             "&9Bukkit-Plugins (&e{0}&9): {1}",
             "&7- &a/{0} deps <plugin> &f- &7Zeigt Plugin-Abhängigkeiten an.",
+            "&7- &a/{0} reloadmode [ALL|REQUIRED_ONLY|OFF] &f- &7Zeigt oder ändert das Dependent-Reload-Verhalten.",
             "Plugin-Abhängigkeiten: {0}",
             "&7- Abhängigkeiten: &a{0}",
             "&7- Soft-Abhängigkeiten: &a{0}",
             "&7- Genutzt von: &a{0}",
+            "&9Dependent-Reload-Modus wurde auf &a{0}&9 gesetzt.",
+            "&9Aktueller Dependent-Reload-Modus: &a{0}&9.",
+            "&cUngültiger Dependent-Reload-Modus: {0}. Nutze ALL, REQUIRED_ONLY oder OFF.",
+            "&cDependent-Reload-Modus konnte nicht gespeichert werden. Prüfe den Server-Log.",
             "&c{0} konnte nicht aktiviert werden. Prüfe den Server-Log für den Plugin-Fehler.",
             "&cPlugMan ist darauf konfiguriert, dieses Plugin zu ignorieren.",
             "&cDies ist kein gültiges Plugin.",
@@ -120,10 +131,15 @@ public class MessageMigrationService {
         changed |= addMissingMessageEntry(updatedLines, "list", "paper", defaults.paperMessage());
         changed |= addMissingMessageEntry(updatedLines, "list", "bukkit", defaults.bukkitMessage());
         changed |= addMissingMessageEntry(updatedLines, HELP_SECTION, DEPS_SECTION, defaults.helpDepsMessage());
+        changed |= addMissingMessageEntry(updatedLines, HELP_SECTION, RELOAD_MODE_SECTION, defaults.helpReloadModeMessage());
         changed |= addMissingMessageEntry(updatedLines, DEPS_SECTION, "header", defaults.depsHeaderMessage());
         changed |= addMissingMessageEntry(updatedLines, DEPS_SECTION, "depends", defaults.depsDependsMessage());
         changed |= addMissingMessageEntry(updatedLines, DEPS_SECTION, "softdepends", defaults.depsSoftDependsMessage());
         changed |= addMissingMessageEntry(updatedLines, DEPS_SECTION, "used-by", defaults.depsUsedByMessage());
+        changed |= addMissingMessageEntry(updatedLines, RELOAD_MODE_SECTION, "changed", defaults.reloadModeChangedMessage());
+        changed |= addMissingMessageEntry(updatedLines, RELOAD_MODE_SECTION, "current", defaults.reloadModeCurrentMessage());
+        changed |= addMissingMessageEntry(updatedLines, RELOAD_MODE_SECTION, "invalid", defaults.reloadModeInvalidMessage());
+        changed |= addMissingMessageEntry(updatedLines, RELOAD_MODE_SECTION, "save-failed", defaults.reloadModeSaveFailedMessage());
         changed |= addMissingMessageEntry(updatedLines, "enable", "failed", defaults.enableFailedMessage());
         changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "ignored", defaults.errorIgnoredMessage());
         changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "invalid-plugin", defaults.errorInvalidPluginMessage());
@@ -245,10 +261,15 @@ public class MessageMigrationService {
     private record MessageDefaults(String paperMessage,
                                    String bukkitMessage,
                                    String helpDepsMessage,
+                                   String helpReloadModeMessage,
                                    String depsHeaderMessage,
                                    String depsDependsMessage,
                                    String depsSoftDependsMessage,
                                    String depsUsedByMessage,
+                                   String reloadModeChangedMessage,
+                                   String reloadModeCurrentMessage,
+                                   String reloadModeInvalidMessage,
+                                   String reloadModeSaveFailedMessage,
                                    String enableFailedMessage,
                                    String errorIgnoredMessage,
                                    String errorInvalidPluginMessage,
