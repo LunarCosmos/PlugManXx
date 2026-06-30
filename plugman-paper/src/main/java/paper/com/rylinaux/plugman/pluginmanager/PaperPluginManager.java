@@ -78,6 +78,7 @@ public class PaperPluginManager extends BasePluginManager {
     private static final String CURRENT_CONTEXT_FIELD = "currentContext";
     private static final String SET_CURRENT_CONTEXT_METHOD = "setCurrentContext";
     private static final String COMMANDS_LOG_PREFIX = "commands ";
+    private static final String LOAD_INVALID_PLUGIN_MESSAGE = "load.invalid-plugin";
 
     @Delegate
     private final BukkitPluginManager _bukkitPluginManager;
@@ -198,10 +199,10 @@ public class PaperPluginManager extends BasePluginManager {
 
             var target = loadPluginWithPaper(pluginFile);
             if (target == null) {
-                if (getPluginByName(preflight.descriptor().name()) != null) return new PluginResult(false, "load.invalid-plugin", preflight.descriptor().name());
-                if (preflight.descriptor().paperPlugin()) return new PluginResult(false, "load.invalid-plugin", preflight.descriptor().name());
+                if (getPluginByName(preflight.descriptor().name()) != null) return new PluginResult(false, LOAD_INVALID_PLUGIN_MESSAGE, preflight.descriptor().name());
+                if (preflight.descriptor().paperPlugin()) return new PluginResult(false, LOAD_INVALID_PLUGIN_MESSAGE, preflight.descriptor().name());
                 target = loadAndEnablePlugin(pluginFile, true);
-                if (target == null) return new PluginResult(false, "load.invalid-plugin", preflight.descriptor().name());
+                if (target == null) return new PluginResult(false, LOAD_INVALID_PLUGIN_MESSAGE, preflight.descriptor().name());
             }
 
             scheduleCommandLoading();
