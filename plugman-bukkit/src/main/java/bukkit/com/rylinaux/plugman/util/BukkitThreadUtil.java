@@ -59,25 +59,29 @@ public class BukkitThreadUtil implements ThreadUtil {
 
     @Override
     public void asyncLater(Runnable runnable, long delay) {
-        Bukkit.getScheduler().runTaskLaterAsynchronously(PlugManBukkit.getInstance(), runnable, delay);
+        Bukkit.getScheduler().runTaskLaterAsynchronously(PlugManBukkit.getInstance(), runnable, delayTicks(delay));
     }
 
     @Override
     public void syncLater(Runnable runnable, long delay) {
-        Bukkit.getScheduler().runTaskLater(PlugManBukkit.getInstance(), runnable, delay);
+        Bukkit.getScheduler().runTaskLater(PlugManBukkit.getInstance(), runnable, delayTicks(delay));
     }
 
     @Override
     public void syncRepeating(Runnable runnable, long delay, long period) {
-        Bukkit.getScheduler().runTaskTimer(PlugManBukkit.getInstance(), runnable, ticks(delay), ticks(period));
+        Bukkit.getScheduler().runTaskTimer(PlugManBukkit.getInstance(), runnable, delayTicks(delay), periodTicks(period));
     }
 
     @Override
     public void asyncRepeating(Runnable runnable, long delay, long period) {
-        Bukkit.getScheduler().runTaskTimerAsynchronously(PlugManBukkit.getInstance(), runnable, ticks(delay), ticks(period));
+        Bukkit.getScheduler().runTaskTimerAsynchronously(PlugManBukkit.getInstance(), runnable, delayTicks(delay), periodTicks(period));
     }
 
-    private long ticks(long millis) {
-        return millis / 1000 / 20;
+    private long delayTicks(long millis) {
+        return Math.max(0L, millis / 50L);
+    }
+
+    private long periodTicks(long millis) {
+        return Math.max(1L, millis / 50L);
     }
 }

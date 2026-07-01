@@ -33,10 +33,11 @@ public final class CrashDumpWriter {
             var dumpDirectory = getDumpDirectory();
             Files.createDirectories(dumpDirectory.toPath());
 
-            var dumpFile = new File(dumpDirectory, "plugmanx-crash-" + FILE_TIMESTAMP.format(LocalDateTime.now(SERVER_ZONE)) + ".log");
+            var dumpId = "PMX-" + FILE_TIMESTAMP.format(LocalDateTime.now(SERVER_ZONE));
+            var dumpFile = new File(dumpDirectory, dumpId + ".log");
             Files.writeString(dumpFile.toPath(), createDump(context, throwable), StandardCharsets.UTF_8);
             var plugin = PlugManBukkit.getInstance();
-            if (plugin != null) plugin.getLogger().warning("Crash dump written to " + dumpFile.getPath());
+            if (plugin != null) plugin.getLogger().warning("Crash dump written: " + dumpId + " (" + dumpFile.getPath() + ")");
         } catch (IOException | RuntimeException exception) {
             var plugin = PlugManBukkit.getInstance();
             if (plugin != null) plugin.getLogger().log(Level.WARNING, "Failed to write PlugManX crash dump", exception);
