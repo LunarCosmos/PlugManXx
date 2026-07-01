@@ -88,6 +88,9 @@ public class PaperPluginManager extends BasePluginManager {
     private static final String COMMANDS_LOG_PREFIX = "commands ";
     private static final String LOAD_INVALID_PLUGIN_MESSAGE = "load.invalid-plugin";
     private static final String LOAD_ENABLE_FAILED_MESSAGE = "load.enable-failed";
+    private static final String METHOD_NOT_FOUND_IN_MESSAGE = " method not found in ";
+    private static final String CREATE_DEPENDENCY_TREE_METHOD = "createDependencyTree";
+    private static final String GET_DEPENDENCY_TREE_METHOD = "getDependencyTree";
 
     @Delegate
     private final BukkitPluginManager _bukkitPluginManager;
@@ -504,7 +507,7 @@ public class PaperPluginManager extends BasePluginManager {
                 .filter(candidate -> candidate.getParameterTypes().length == 1)
                 .filter(candidate -> candidate.getParameterTypes()[0].isAssignableFrom(entrypointClass))
                 .findFirst()
-                .orElseThrow(() -> new NoSuchMethodException(ENTER_METHOD + " method not found in " + handler.getClass().getName()));
+                .orElseThrow(() -> new NoSuchMethodException(ENTER_METHOD + METHOD_NOT_FOUND_IN_MESSAGE + handler.getClass().getName()));
 
         method.setAccessible(true);
         method.invoke(handler, entrypoint);
@@ -517,7 +520,7 @@ public class PaperPluginManager extends BasePluginManager {
                 .filter(candidate -> candidate.getParameterTypes().length == 1)
                 .filter(candidate -> providerClass == null || candidate.getParameterTypes()[0].isAssignableFrom(providerClass))
                 .findFirst()
-                .orElseThrow(() -> new NoSuchMethodException(REGISTER_METHOD + " method not found in " + storage.getClass().getName()));
+                .orElseThrow(() -> new NoSuchMethodException(REGISTER_METHOD + METHOD_NOT_FOUND_IN_MESSAGE + storage.getClass().getName()));
 
         method.setAccessible(true);
         method.invoke(storage, provider);
@@ -529,13 +532,13 @@ public class PaperPluginManager extends BasePluginManager {
         var strategy = getFieldValueFromHierarchy(storage, "strategy");
         if (strategy == null) throw new NoSuchFieldException("strategy field not found in " + storage.getClass().getName());
 
-        var dependencyTree = invokeNoArgMethod(storage, "createDependencyTree");
+        var dependencyTree = createDependencyTree(storage);
         populateDependencyTree(storage, dependencyTree, providersToLoad);
         var loadProvidersMethod = getAllMethods(strategy.getClass()).stream()
                 .filter(candidate -> candidate.getName().equals("loadProviders"))
                 .filter(candidate -> candidate.getParameterTypes().length == 2)
                 .findFirst()
-                .orElseThrow(() -> new NoSuchMethodException("loadProviders method not found in " + strategy.getClass().getName()));
+                .orElseThrow(() -> new NoSuchMethodException("loadProviders" + METHOD_NOT_FOUND_IN_MESSAGE + strategy.getClass().getName()));
 
         loadProvidersMethod.setAccessible(true);
         var loadedProviders = (List<?>) loadProvidersMethod.invoke(strategy, providersToLoad, dependencyTree);
@@ -551,10 +554,23 @@ public class PaperPluginManager extends BasePluginManager {
                 .filter(candidate -> candidate.getName().equals("processProvided"))
                 .filter(candidate -> candidate.getParameterTypes().length == 2)
                 .findFirst()
-                .orElseThrow(() -> new NoSuchMethodException("processProvided method not found in " + storage.getClass().getName()));
+                .orElseThrow(() -> new NoSuchMethodException("processProvided" + METHOD_NOT_FOUND_IN_MESSAGE + storage.getClass().getName()));
 
         method.setAccessible(true);
         method.invoke(storage, provider, provided);
+    }
+
+    private Object createDependencyTree(Object storage) throws ReflectiveOperationException {
+        var method = getAllMethods(storage.getClass()).stream()
+                .filter(candidate -> candidate.getName().equals(CREATE_DEPENDENCY_TREE_METHOD)
+                        || candidate.getName().equals(GET_DEPENDENCY_TREE_METHOD))
+                .filter(candidate -> candidate.getParameterTypes().length == 0)
+                .findFirst()
+                .orElseThrow(() -> new NoSuchMethodException(CREATE_DEPENDENCY_TREE_METHOD
+                        + "/" + GET_DEPENDENCY_TREE_METHOD + METHOD_NOT_FOUND_IN_MESSAGE + storage.getClass().getName()));
+
+        method.setAccessible(true);
+        return method.invoke(storage);
     }
 
     private void populateDependencyTree(Object storage, Object dependencyTree, List<Object> providersToLoad) throws ReflectiveOperationException {
@@ -571,8 +587,9 @@ public class PaperPluginManager extends BasePluginManager {
         var method = getAllMethods(dependencyTree.getClass()).stream()
                 .filter(candidate -> candidate.getName().equals("add"))
                 .filter(candidate -> candidate.getParameterTypes().length == 1)
+                .filter(candidate -> candidate.getParameterTypes()[0].isInstance(provider))
                 .findFirst()
-                .orElseThrow(() -> new NoSuchMethodException("add method not found in " + dependencyTree.getClass().getName()));
+                .orElseThrow(() -> new NoSuchMethodException("add" + METHOD_NOT_FOUND_IN_MESSAGE + dependencyTree.getClass().getName()));
 
         method.setAccessible(true);
         method.invoke(dependencyTree, provider);
@@ -583,7 +600,7 @@ public class PaperPluginManager extends BasePluginManager {
                 .filter(candidate -> candidate.getName().equals(methodName))
                 .filter(candidate -> candidate.getParameterTypes().length == 0)
                 .findFirst()
-                .orElseThrow(() -> new NoSuchMethodException(methodName + " method not found in " + instance.getClass().getName()));
+                .orElseThrow(() -> new NoSuchMethodException(methodName + METHOD_NOT_FOUND_IN_MESSAGE + instance.getClass().getName()));
 
         method.setAccessible(true);
         return method.invoke(instance);
@@ -684,7 +701,7 @@ public class PaperPluginManager extends BasePluginManager {
             var runner = FieldAccessor.getValue(lifecycleRunnerClass, PaperReflectionNames.INSTANCE_FIELD, null);
             var paperCommands = FieldAccessor.getValue(paperCommandsClass, PaperReflectionNames.INSTANCE_FIELD, null);
             var reloadCause = FieldAccessor.getValue(causeClass, PaperReflectionNames.RELOAD_FIELD, null);
-            preparePaperCommandsRegistrar(paperCommandsClass, paperCommands);
+            preparePaperCommandsRegistrar(paperCommands);
 
             var constructor = reloadableEventClass.getDeclaredConstructor(paperRegistrarClass, Class.class, causeClass);
             constructor.setAccessible(true);
@@ -711,7 +728,7 @@ public class PaperPluginManager extends BasePluginManager {
         }
     }
 
-    private void preparePaperCommandsRegistrar(Class<?> paperCommandsClass, Object paperCommands) throws ReflectiveOperationException {
+    private void preparePaperCommandsRegistrar(Object paperCommands) throws ReflectiveOperationException {
         invokeNoArgMethod(paperCommands, "setValid");
 
         try {
