@@ -10,6 +10,7 @@ public interface ThreadUtil {
      */
     void asyncLater(Runnable runnable, long delay);
 
+    /**
      * Runs a task on the platform main thread after the given delay in milliseconds.
      */
     void syncLater(Runnable runnable, long delay);
