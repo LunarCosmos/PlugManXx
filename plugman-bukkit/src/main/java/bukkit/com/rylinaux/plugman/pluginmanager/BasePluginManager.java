@@ -36,6 +36,7 @@ import core.com.rylinaux.plugman.plugins.Plugin;
 import core.com.rylinaux.plugman.plugins.PluginManager;
 import core.com.rylinaux.plugman.util.ThreadUtil;
 import core.com.rylinaux.plugman.util.reflection.FieldAccessor;
+import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.event.Event;
@@ -86,6 +87,35 @@ public abstract class BasePluginManager implements PluginManager {
     protected void cleanupListeners(Plugin plugin, Map<Event, SortedSet<RegisteredListener>> listeners, boolean reloadListeners) {
         var bukkitPlugin = plugin.<org.bukkit.plugin.Plugin>getHandle();
         if (listeners != null && reloadListeners) listeners.values().forEach(set -> set.removeIf(value -> value.getPlugin() == bukkitPlugin));
+    }
+
+    /**
+     * Common permission cleanup logic.
+     */
+    protected void cleanupPermissions(Plugin plugin) {
+        var bukkitPlugin = plugin.<org.bukkit.plugin.Plugin>getHandle();
+        var permissionNames = new ArrayList<String>();
+
+        for (var permission : bukkitPlugin.getDescription().getPermissions()) {
+            permissionNames.add(permission.getName());
+            permissionNames.addAll(permission.getChildren().keySet());
+        }
+
+        var pluginPrefix = bukkitPlugin.getName().toLowerCase().replaceAll("[^a-z0-9]", "");
+        Bukkit.getPluginManager().getPermissions().stream()
+                .map(org.bukkit.permissions.Permission::getName)
+                .filter(permissionName -> permissionName.toLowerCase().startsWith(pluginPrefix + "."))
+                .forEach(permissionNames::add);
+
+        permissionNames.stream()
+                .distinct()
+                .forEach(permissionName -> {
+                    try {
+                        Bukkit.getPluginManager().removePermission(permissionName);
+                    } catch (IllegalArgumentException ignored) {
+                        // Permission was already removed or never registered.
+                    }
+                });
     }
 
     /**

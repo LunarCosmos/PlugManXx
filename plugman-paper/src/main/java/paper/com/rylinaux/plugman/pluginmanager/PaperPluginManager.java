@@ -198,6 +198,7 @@ public class PaperPluginManager extends BasePluginManager {
         if (unloadData == null) return new PluginResult(false, "unload.failed");
 
         cleanupCommands(plugin, unloadData);
+        cleanupPermissions(plugin);
 
         return new PluginResult(true, "plugin.disabled");
     }
@@ -988,6 +989,7 @@ public class PaperPluginManager extends BasePluginManager {
 
         cleanupListeners(plugin, unloadData);
         cleanupCommands(plugin, unloadData);
+        cleanupPermissions(plugin);
         cleanupPluginRecipes(plugin);
         removeFromPluginLists(plugin, unloadData);
 

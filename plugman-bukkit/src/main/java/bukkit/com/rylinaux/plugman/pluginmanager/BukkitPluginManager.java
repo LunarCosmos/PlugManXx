@@ -484,6 +484,7 @@ public class BukkitPluginManager extends BasePluginManager {
 
         cleanupListeners(plugin, data.listeners(), data.reloadListeners());
         cleanupCommands(plugin, data);
+        cleanupPermissions(plugin);
         syncCommands();
         removeFromPluginLists(plugin, data);
     }
