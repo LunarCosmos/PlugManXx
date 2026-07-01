@@ -175,6 +175,7 @@ public abstract class BasePluginManager implements PluginManager {
 
         var unavailableDependencies = descriptor.requiredDependencies().stream()
                 .filter(dependency -> !isDependencySatisfied(dependency))
+                .filter(dependency -> getPluginByName(dependency) == null)
                 .filter(dependency -> findPluginFile(dependency) == null)
                 .toList();
         if (!unavailableDependencies.isEmpty()) {
@@ -195,6 +196,13 @@ public abstract class BasePluginManager implements PluginManager {
 
     protected PluginResult loadRequiredDependencies(PluginDescriptor descriptor) {
         for (var dependency : descriptor.requiredDependencies()) {
+            var loadedDependency = getPluginByName(dependency);
+            if (loadedDependency != null && !loadedDependency.isEnabled()) {
+                var enableResult = enable(loadedDependency);
+                if (!enableResult.success()) return enableResult;
+                continue;
+            }
+
             if (isDependencySatisfied(dependency)) continue;
             if (loadingPlugins.contains(dependency)) {
                 return new PluginResult(false, "load.missing-dependencies", descriptor.name(), dependency);
@@ -210,10 +218,12 @@ public abstract class BasePluginManager implements PluginManager {
     }
 
     private boolean isDependencySatisfied(String dependency) {
-        if (getPluginByName(dependency) != null) return true;
+        var dependencyPlugin = getPluginByName(dependency);
+        if (dependencyPlugin != null) return dependencyPlugin.isEnabled();
 
         return Arrays.stream(org.bukkit.Bukkit.getPluginManager().getPlugins())
-                .anyMatch(plugin -> plugin.getDescription().getProvides().stream()
+                .filter(org.bukkit.plugin.Plugin::isEnabled)
+                .anyMatch(candidate -> candidate.getDescription().getProvides().stream()
                         .anyMatch(providedName -> providedName.equalsIgnoreCase(dependency)));
     }
 
@@ -244,7 +254,17 @@ public abstract class BasePluginManager implements PluginManager {
 
     private PluginDescriptor readPluginDescriptor(File file) {
         var bukkitDescriptor = readBukkitPluginDescriptor(file);
-        return bukkitDescriptor != null ? bukkitDescriptor : readPaperPluginDescriptor(file);
+        var paperDescriptor = readPaperPluginDescriptor(file);
+        if (bukkitDescriptor == null) return paperDescriptor;
+        if (paperDescriptor == null) return bukkitDescriptor;
+
+        var requiredDependencies = new ArrayList<>(bukkitDescriptor.requiredDependencies());
+        addMissingDependencies(requiredDependencies, paperDescriptor.requiredDependencies());
+
+        var name = paperDescriptor.name() == null || paperDescriptor.name().isBlank()
+                ? bukkitDescriptor.name()
+                : paperDescriptor.name();
+        return new PluginDescriptor(name, true, requiredDependencies);
     }
 
     private PluginDescriptor readBukkitPluginDescriptor(File file) {
@@ -269,6 +289,8 @@ public abstract class BasePluginManager implements PluginManager {
                 var requiredDependencies = new ArrayList<String>();
                 addListValues(requiredDependencies, map.get("depend"));
                 addRequiredPaperDependencies(requiredDependencies, map.get("dependencies"));
+                addRequiredPaperDependencies(requiredDependencies, map.get("serverDependencies"));
+                addRequiredPaperDependencies(requiredDependencies, map.get("bootstrapDependencies"));
 
                 return new PluginDescriptor(name == null ? null : name.toString(), true, requiredDependencies);
             }
@@ -287,16 +309,73 @@ public abstract class BasePluginManager implements PluginManager {
                 .forEach(target::add);
     }
 
-    private void addRequiredPaperDependencies(List<String> target, Object value) {
-        if (!(value instanceof Map<?, ?> dependencies)) return;
-        var serverDependencies = dependencies.get("server");
-        if (!(serverDependencies instanceof Map<?, ?> serverDependencyMap)) return;
-
-        for (var entry : serverDependencyMap.entrySet()) {
-            if (!(entry.getKey() instanceof String dependencyName) || dependencyName.isBlank()) continue;
-            if (!isRequiredPaperDependency(entry.getValue())) continue;
-            target.add(dependencyName);
+    private void addMissingDependencies(List<String> target, List<String> dependencies) {
+        for (var dependency : dependencies) {
+            if (dependency == null || dependency.isBlank()) continue;
+            if (containsDependency(target, dependency)) continue;
+            target.add(dependency);
         }
+    }
+
+    private boolean containsDependency(List<String> dependencies, String dependency) {
+        return dependencies.stream().anyMatch(existing -> existing.equalsIgnoreCase(dependency));
+    }
+
+    private void addRequiredPaperDependencies(List<String> target, Object value) {
+        if (value instanceof List<?> dependencyList) {
+            addPaperDependencyList(target, dependencyList);
+            return;
+        }
+
+        if (!(value instanceof Map<?, ?> dependencies)) return;
+
+        for (var entry : dependencies.entrySet()) {
+            if (entry.getKey() instanceof String dependencyName && isPaperDependencySettings(entry.getValue())) {
+                addRequiredPaperDependency(target, dependencyName, entry.getValue());
+                continue;
+            }
+
+            if (entry.getValue() instanceof Map<?, ?> dependencySection) {
+                addPaperDependencySection(target, dependencySection);
+            }
+        }
+    }
+
+    private void addPaperDependencyList(List<String> target, List<?> dependencyList) {
+        for (var dependency : dependencyList) {
+            if (dependency instanceof String dependencyName) {
+                addRequiredPaperDependency(target, dependencyName, null);
+                continue;
+            }
+
+            if (dependency instanceof Map<?, ?> dependencySettings) {
+                var name = dependencySettings.get("name");
+                if (name instanceof String dependencyName) {
+                    addRequiredPaperDependency(target, dependencyName, dependencySettings);
+                }
+            }
+        }
+    }
+
+    private void addPaperDependencySection(List<String> target, Map<?, ?> dependencySection) {
+        for (var entry : dependencySection.entrySet()) {
+            if (!(entry.getKey() instanceof String dependencyName)) continue;
+            addRequiredPaperDependency(target, dependencyName, entry.getValue());
+        }
+    }
+
+    private void addRequiredPaperDependency(List<String> target, String dependencyName, Object dependencySettings) {
+        if (dependencyName.isBlank()) return;
+        if (!isRequiredPaperDependency(dependencySettings)) return;
+        if (containsDependency(target, dependencyName)) return;
+        target.add(dependencyName);
+    }
+
+    private boolean isPaperDependencySettings(Object value) {
+        if (!(value instanceof Map<?, ?> dependencySettings)) return true;
+        return dependencySettings.containsKey("load")
+                || dependencySettings.containsKey("required")
+                || dependencySettings.containsKey("join-classpath");
     }
 
     private boolean isRequiredPaperDependency(Object value) {
