@@ -188,6 +188,19 @@ public class PaperPluginManager extends BasePluginManager {
         return new PluginResult(true, "enable.enabled", pluginName);
     }
 
+    @Override
+    public PluginResult disable(Plugin plugin) {
+        if (plugin == null) return new PluginResult(false, "plugin.null");
+        if (!plugin.isEnabled()) return new PluginResult(false, "plugin.already-disabled");
+
+        var unloadData = extractPluginManagerData(plugin);
+        if (unloadData == null) return new PluginResult(false, "unload.failed");
+
+        cleanupCommands(plugin, unloadData);
+
+        return new PluginResult(true, "plugin.disabled");
+    }
+
     /**
      * Loads and enables a plugin.
      *
