@@ -47,6 +47,7 @@ import org.bukkit.command.Command;
 import org.bukkit.event.EventException;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.Recipe;
+import org.bukkit.plugin.UnknownDependencyException;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.YAMLException;
 import paper.com.rylinaux.plugman.util.PaperReflectionNames;
@@ -348,7 +349,7 @@ public class PaperPluginManager extends BasePluginManager {
     private String findMissingDependencies(Throwable throwable) {
         var current = throwable;
         while (current != null) {
-            if ("org.bukkit.plugin.UnknownDependencyException".equals(current.getClass().getName())) {
+            if (current instanceof UnknownDependencyException) {
                 return extractMissingDependencies(current.getMessage());
             }
             current = current.getCause();
@@ -462,7 +463,7 @@ public class PaperPluginManager extends BasePluginManager {
                                                   Object pluginStorage,
                                                   Object bootstrapEntrypoint,
                                                   Object bootstrapStorage,
-                                                  Map<Object, List<Object>> registeredProviders) throws Exception {
+                                                  Map<Object, List<Object>> registeredProviders) throws ReflectiveOperationException {
         var storage = resolveRuntimeEntrypointStorage(args[0], pluginEntrypoint, pluginStorage, bootstrapEntrypoint, bootstrapStorage);
         if (storage == null) {
             debugPaperReload("ignored unsupported runtime entrypoint " + args[0]);
@@ -479,7 +480,7 @@ public class PaperPluginManager extends BasePluginManager {
                                                Object pluginStorage,
                                                Object bootstrapEntrypoint,
                                                Object bootstrapStorage,
-                                               Map<Object, List<Object>> registeredProviders) throws Exception {
+                                               Map<Object, List<Object>> registeredProviders) throws ReflectiveOperationException {
         var storage = resolveRuntimeEntrypointStorage(args[0], pluginEntrypoint, pluginStorage, bootstrapEntrypoint, bootstrapStorage);
         if (storage == null) throw new IllegalArgumentException("Unsupported runtime entrypoint " + args[0]);
 
@@ -497,8 +498,16 @@ public class PaperPluginManager extends BasePluginManager {
         return null;
     }
 
-    private void enterPaperRuntimeEntrypoint(Object handler, Class<?> entrypointClass, Object entrypoint) throws Exception {
-        MethodAccessor.invoke(handler.getClass(), ENTER_METHOD, handler, new Class<?>[]{entrypointClass}, entrypoint);
+    private void enterPaperRuntimeEntrypoint(Object handler, Class<?> entrypointClass, Object entrypoint) throws ReflectiveOperationException {
+        var method = getAllMethods(handler.getClass()).stream()
+                .filter(candidate -> candidate.getName().equals(ENTER_METHOD))
+                .filter(candidate -> candidate.getParameterTypes().length == 1)
+                .filter(candidate -> candidate.getParameterTypes()[0].isAssignableFrom(entrypointClass))
+                .findFirst()
+                .orElseThrow(() -> new NoSuchMethodException(ENTER_METHOD + " method not found in " + handler.getClass().getName()));
+
+        method.setAccessible(true);
+        method.invoke(handler, entrypoint);
     }
 
     private void invokeStorageRegister(Object storage, Object provider) throws ReflectiveOperationException {
@@ -514,7 +523,7 @@ public class PaperPluginManager extends BasePluginManager {
         method.invoke(storage, provider);
     }
 
-    private void invokeStorageEnter(Object storage, List<Object> providersToLoad) throws Exception {
+    private void invokeStorageEnter(Object storage, List<Object> providersToLoad) throws ReflectiveOperationException {
         if (providersToLoad == null || providersToLoad.isEmpty()) return;
 
         var strategy = getFieldValueFromHierarchy(storage, "strategy");
@@ -531,13 +540,13 @@ public class PaperPluginManager extends BasePluginManager {
         loadProvidersMethod.setAccessible(true);
         var loadedProviders = (List<?>) loadProvidersMethod.invoke(strategy, providersToLoad, dependencyTree);
         for (var pair : loadedProviders) {
-            var provider = MethodAccessor.invoke(pair.getClass(), "provider", pair);
-            var provided = MethodAccessor.invoke(pair.getClass(), "provided", pair);
+            var provider = invokeNoArgMethod(pair, "provider");
+            var provided = invokeNoArgMethod(pair, "provided");
             invokeStorageProcessProvided(storage, provider, provided);
         }
     }
 
-    private void invokeStorageProcessProvided(Object storage, Object provider, Object provided) throws Exception {
+    private void invokeStorageProcessProvided(Object storage, Object provider, Object provided) throws ReflectiveOperationException {
         var method = getAllMethods(storage.getClass()).stream()
                 .filter(candidate -> candidate.getName().equals("processProvided"))
                 .filter(candidate -> candidate.getParameterTypes().length == 2)
@@ -548,7 +557,7 @@ public class PaperPluginManager extends BasePluginManager {
         method.invoke(storage, provider, provided);
     }
 
-    private void populateDependencyTree(Object storage, Object dependencyTree, List<Object> providersToLoad) throws Exception {
+    private void populateDependencyTree(Object storage, Object dependencyTree, List<Object> providersToLoad) throws ReflectiveOperationException {
         var providersIterable = invokeNoArgMethod(storage, "getRegisteredProviders");
         if (!(providersIterable instanceof Iterable<?> providers)) return;
 
@@ -558,7 +567,7 @@ public class PaperPluginManager extends BasePluginManager {
         }
     }
 
-    private void invokeDependencyTreeAdd(Object dependencyTree, Object provider) throws Exception {
+    private void invokeDependencyTreeAdd(Object dependencyTree, Object provider) throws ReflectiveOperationException {
         var method = getAllMethods(dependencyTree.getClass()).stream()
                 .filter(candidate -> candidate.getName().equals("add"))
                 .filter(candidate -> candidate.getParameterTypes().length == 1)
@@ -569,7 +578,7 @@ public class PaperPluginManager extends BasePluginManager {
         method.invoke(dependencyTree, provider);
     }
 
-    private Object invokeNoArgMethod(Object instance, String methodName) throws Exception {
+    private Object invokeNoArgMethod(Object instance, String methodName) throws ReflectiveOperationException {
         var method = getAllMethods(instance.getClass()).stream()
                 .filter(candidate -> candidate.getName().equals(methodName))
                 .filter(candidate -> candidate.getParameterTypes().length == 0)
@@ -702,11 +711,11 @@ public class PaperPluginManager extends BasePluginManager {
         }
     }
 
-    private void preparePaperCommandsRegistrar(Class<?> paperCommandsClass, Object paperCommands) throws Exception {
-        MethodAccessor.invoke(paperCommandsClass, "setValid", paperCommands);
+    private void preparePaperCommandsRegistrar(Class<?> paperCommandsClass, Object paperCommands) throws ReflectiveOperationException {
+        invokeNoArgMethod(paperCommands, "setValid");
 
         try {
-            MethodAccessor.invoke(paperCommandsClass, "getDispatcher", paperCommands);
+            invokeNoArgMethod(paperCommands, "getDispatcher");
             debugPaperReload("PaperCommands dispatcher is available");
         } catch (InvocationTargetException exception) {
             var cause = exception.getTargetException() == null ? exception : exception.getTargetException();
@@ -910,12 +919,6 @@ public class PaperPluginManager extends BasePluginManager {
         Constructor<?> constructor = clazz.getDeclaredConstructor(parameterTypes);
         constructor.setAccessible(true);
         return constructor.newInstance(args);
-    }
-
-    private Object newInstance(Class<?> clazz) throws ReflectiveOperationException {
-        Constructor<?> constructor = clazz.getDeclaredConstructor();
-        constructor.setAccessible(true);
-        return constructor.newInstance();
     }
 
     @Override
