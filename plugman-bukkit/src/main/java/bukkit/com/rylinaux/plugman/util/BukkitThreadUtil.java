@@ -69,11 +69,15 @@ public class BukkitThreadUtil implements ThreadUtil {
 
     @Override
     public void syncRepeating(Runnable runnable, long delay, long period) {
-        Bukkit.getScheduler().scheduleSyncRepeatingTask(PlugManBukkit.getInstance(), runnable, delay / 1000 / 20, period / 1000 / 20);
+        Bukkit.getScheduler().runTaskTimer(PlugManBukkit.getInstance(), runnable, ticks(delay), ticks(period));
     }
 
     @Override
     public void asyncRepeating(Runnable runnable, long delay, long period) {
-        Bukkit.getScheduler().scheduleAsyncRepeatingTask(PlugManBukkit.getInstance(), runnable, delay / 1000 / 20, period / 1000 / 20);
+        Bukkit.getScheduler().runTaskTimerAsynchronously(PlugManBukkit.getInstance(), runnable, ticks(delay), ticks(period));
+    }
+
+    private long ticks(long millis) {
+        return millis / 1000 / 20;
     }
 }

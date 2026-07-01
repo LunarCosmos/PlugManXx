@@ -39,6 +39,7 @@ import core.com.rylinaux.plugman.util.reflection.FieldAccessor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.event.Event;
+import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.RegisteredListener;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -63,6 +64,7 @@ import org.yaml.snakeyaml.Yaml;
  * Base class containing common functionality shared across plugin managers.
  */
 public abstract class BasePluginManager implements PluginManager {
+    private static final String BUKKIT_PLUGIN_YML = "plugin.yml";
     private static final String PAPER_PLUGIN_YML = "paper-plugin.yml";
     private final Set<String> loadingPlugins = ConcurrentHashMap.newKeySet();
     private int commandUpdateBatchDepth = 0;
@@ -228,11 +230,8 @@ public abstract class BasePluginManager implements PluginManager {
     }
 
     private String getBukkitPluginName(File file) {
-        try {
-            return PlugManBukkit.getInstance().getPluginLoader().getPluginDescription(file).getName();
-        } catch (Exception ignored) {
-            return null;
-        }
+        var description = readBukkitPluginDescription(file);
+        return description == null ? null : description.getName();
     }
 
     private String getPaperPluginName(File file) {
@@ -268,9 +267,36 @@ public abstract class BasePluginManager implements PluginManager {
     }
 
     private PluginDescriptor readBukkitPluginDescriptor(File file) {
+        var description = readBukkitPluginDescription(file);
+        return description == null ? null : new PluginDescriptor(description.getName(), false, new ArrayList<>(description.getDepend()));
+    }
+
+    private PluginDescriptionFile readBukkitPluginDescription(File file) {
+        var description = readBukkitPluginDescriptionFromJar(file);
+        return description == null ? readBukkitPluginDescriptionWithLegacyLoader(file) : description;
+    }
+
+    private PluginDescriptionFile readBukkitPluginDescriptionFromJar(File file) {
+        try (var jar = new JarFile(file)) {
+            var entry = jar.getJarEntry(BUKKIT_PLUGIN_YML);
+            if (entry == null) return null;
+
+            try (var input = jar.getInputStream(entry)) {
+                return new PluginDescriptionFile(input);
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private PluginDescriptionFile readBukkitPluginDescriptionWithLegacyLoader(File file) {
         try {
-            var description = PlugManBukkit.getInstance().getPluginLoader().getPluginDescription(file);
-            return new PluginDescriptor(description.getName(), false, new ArrayList<>(description.getDepend()));
+            var plugin = PlugManBukkit.getInstance();
+            var getPluginLoader = plugin.getClass().getMethod("getPluginLoader");
+            var pluginLoader = getPluginLoader.invoke(plugin);
+            var getPluginDescription = pluginLoader.getClass().getMethod("getPluginDescription", File.class);
+            var description = getPluginDescription.invoke(pluginLoader, file);
+            return description instanceof PluginDescriptionFile pluginDescription ? pluginDescription : null;
         } catch (Exception ignored) {
             return null;
         }
