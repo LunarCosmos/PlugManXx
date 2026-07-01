@@ -27,6 +27,7 @@ package paper.com.rylinaux.plugman.pluginmanager;
  */
 
 import bukkit.com.rylinaux.plugman.PlugManBukkit;
+import bukkit.com.rylinaux.plugman.logging.CrashDumpWriter;
 import bukkit.com.rylinaux.plugman.plugin.BukkitPlugin;
 import bukkit.com.rylinaux.plugman.pluginmanager.BasePluginManager;
 import bukkit.com.rylinaux.plugman.pluginmanager.BukkitPluginManager;
@@ -388,6 +389,7 @@ public class PaperPluginManager extends BasePluginManager {
     }
 
     private void logPaperLoadFailure(String message, Throwable throwable) {
+        CrashDumpWriter.write(message, throwable);
         if (isPaperReloadDebugEnabled()) {
             PlugManBukkit.getInstance().getLogger().log(Level.SEVERE, "[PaperReloadDebug] " + message, throwable);
             return;
