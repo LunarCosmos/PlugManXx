@@ -79,6 +79,7 @@ load:
   cannot-find: '&cファイルが見つからず、説明の検索にも失敗しました。'
   invalid-description: '&cそのプラグインには無効な説明があります。'
   invalid-plugin: '&cそのファイルは有効なプラグインではありません。'
+  enable-failed: '&c{0} は読み込まれましたが、onEnable 中に失敗しました。上のスタックトレースを確認してください。'
   loaded: '&9{0} を読み込み、有効化しました。'
   missing-dependencies: '&c{0} を読み込めませんでした。必要な依存関係が不足しています: {1}'
   plugin-dir: '&cplugins フォルダーが見つかりません。'

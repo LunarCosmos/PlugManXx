@@ -79,6 +79,7 @@ load:
   cannot-find: '&cKonnte Datei nicht finden und konnte Beschreibungen nicht durchsuchen.'
   invalid-description: '&cDas Plugin hat eine ungültige Beschreibung.'
   invalid-plugin: '&cDiese Datei ist kein gültiges Plugin.'
+  enable-failed: '&c{0} wurde geladen, ist aber in onEnable fehlgeschlagen. Prüfe den Stacktrace oben.'
   loaded: '&9{0} wurde geladen und aktiviert.'
   missing-dependencies: '&c{0} konnte nicht geladen werden. Fehlende Pflicht-Abhängigkeiten: {1}'
   plugin-dir: '&cPlugin-Verzeichnis nicht gefunden.'

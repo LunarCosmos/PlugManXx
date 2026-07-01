@@ -84,6 +84,7 @@ public class PaperPluginManager extends BasePluginManager {
     private static final String SET_CURRENT_CONTEXT_METHOD = "setCurrentContext";
     private static final String COMMANDS_LOG_PREFIX = "commands ";
     private static final String LOAD_INVALID_PLUGIN_MESSAGE = "load.invalid-plugin";
+    private static final String LOAD_ENABLE_FAILED_MESSAGE = "load.enable-failed";
 
     @Delegate
     private final BukkitPluginManager _bukkitPluginManager;
@@ -204,10 +205,13 @@ public class PaperPluginManager extends BasePluginManager {
 
             var target = loadPluginWithPaper(pluginFile);
             if (target == null) {
-                if (getPluginByName(preflight.descriptor().name()) != null) return new PluginResult(false, LOAD_INVALID_PLUGIN_MESSAGE, preflight.descriptor().name());
+                if (getPluginByName(preflight.descriptor().name()) != null) return new PluginResult(false, LOAD_ENABLE_FAILED_MESSAGE, preflight.descriptor().name());
                 if (preflight.descriptor().paperPlugin()) return new PluginResult(false, LOAD_INVALID_PLUGIN_MESSAGE, preflight.descriptor().name());
                 target = loadAndEnablePlugin(pluginFile, true);
-                if (target == null) return new PluginResult(false, LOAD_INVALID_PLUGIN_MESSAGE, preflight.descriptor().name());
+                if (target == null) {
+                    if (getPluginByName(preflight.descriptor().name()) != null) return new PluginResult(false, LOAD_ENABLE_FAILED_MESSAGE, preflight.descriptor().name());
+                    return new PluginResult(false, LOAD_INVALID_PLUGIN_MESSAGE, preflight.descriptor().name());
+                }
             }
 
             scheduleCommandLoading();
@@ -683,7 +687,8 @@ public class PaperPluginManager extends BasePluginManager {
         }
 
         debugPaperReload("prepareContext methods available=" + methodSignatures(providerSourceClass, PREPARE_CONTEXT_METHOD));
-        throw new IllegalArgumentException("No compatible prepareContext method found in " + providerSourceClass.getName());
+        debugPaperReload("prepareContext unavailable; using plugin path directly");
+        return pluginFile.toPath();
     }
 
     private void registerProviders(Class<?> providerSourceClass, Object providerSource, Object handler, Path preparedPath) throws ReflectiveOperationException {

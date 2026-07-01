@@ -79,6 +79,7 @@ load:
   cannot-find: '&c找不到文件，且无法搜索描述。'
   invalid-description: '&c该插件有无效的描述。'
   invalid-plugin: '&c该文件不是有效的插件。'
+  enable-failed: '&c{0} 已加载，但在 onEnable 期间失败。请检查上方的堆栈跟踪。'
   loaded: '&9{0} 已加载并启用。'
   missing-dependencies: '&c无法加载 {0}。缺少必要依赖: {1}'
   plugin-dir: '&c找不到插件目录。'

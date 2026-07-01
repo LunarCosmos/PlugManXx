@@ -45,6 +45,7 @@ public class MessageMigrationService {
             "&7- &9Command: &7{0}",
             "&7- &9Description: &7{0}",
             "&7- &9Usage: &7{0}",
+            "&c{0} loaded, but failed during onEnable. Check the stacktrace above.",
             "&cCould not load {0}. Missing required dependencies: {1}",
             "&cCould not reload {0}; active plugins depend on it: {1}. Reload or stop those plugins first, or restart the server.",
             "&cCould not restart {0}; active plugins depend on it: {1}. Restart or stop those plugins first, or restart the server.",
@@ -73,6 +74,7 @@ public class MessageMigrationService {
             "&7- &9Befehl: &7{0}",
             "&7- &9Beschreibung: &7{0}",
             "&7- &9Verwendung: &7{0}",
+            "&c{0} wurde geladen, ist aber in onEnable fehlgeschlagen. Prüfe den Stacktrace oben.",
             "&c{0} konnte nicht geladen werden. Fehlende Pflicht-Abhängigkeiten: {1}",
             "&c{0} konnte nicht neu geladen werden; aktive Plugins hängen davon ab: {1}. Lade oder stoppe diese Plugins zuerst, oder starte den Server neu.",
             "&c{0} konnte nicht neu gestartet werden; aktive Plugins hängen davon ab: {1}. Starte oder stoppe diese Plugins zuerst, oder starte den Server neu.",
@@ -150,6 +152,7 @@ public class MessageMigrationService {
         changed |= addMissingNestedMessageEntry(updatedLines, ERROR_SECTION, USAGE_SECTION, "command", defaults.errorUsageCommandMessage());
         changed |= addMissingNestedMessageEntry(updatedLines, ERROR_SECTION, USAGE_SECTION, "description", defaults.errorUsageDescriptionMessage());
         changed |= addMissingNestedMessageEntry(updatedLines, ERROR_SECTION, USAGE_SECTION, USAGE_SECTION, defaults.errorUsageUsageMessage());
+        changed |= addMissingMessageEntry(updatedLines, "load", "enable-failed", defaults.loadEnableFailedMessage());
         changed |= addMissingMessageEntry(updatedLines, "load", "missing-dependencies", defaults.missingDependenciesMessage());
         changed |= addMissingMessageEntry(updatedLines, "reload", "blocked-dependents", defaults.reloadBlockedDependentsMessage());
         changed |= addMissingMessageEntry(updatedLines, "reload", "confirm-all", defaults.reloadConfirmAllMessage());
@@ -280,6 +283,7 @@ public class MessageMigrationService {
                                    String errorUsageCommandMessage,
                                    String errorUsageDescriptionMessage,
                                    String errorUsageUsageMessage,
+                                   String loadEnableFailedMessage,
                                    String missingDependenciesMessage,
                                    String reloadBlockedDependentsMessage,
                                    String restartBlockedDependentsMessage,

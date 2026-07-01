@@ -364,7 +364,10 @@ public class BukkitPluginManager extends BasePluginManager {
             if (!dependencyResult.success()) return dependencyResult;
 
             var target = loadAndEnablePlugin(preflight.pluginFile(), false);
-            if (target == null) return new PluginResult(false, "load.invalid-plugin", preflight.descriptor().name());
+            if (target == null) {
+                if (getPluginByName(preflight.descriptor().name()) != null) return new PluginResult(false, "load.enable-failed", preflight.descriptor().name());
+                return new PluginResult(false, "load.invalid-plugin", preflight.descriptor().name());
+            }
 
             scheduleCommandLoading();
             PlugManBukkit.getInstance().getFilePluginMap().put(preflight.pluginFile().getName(), target.getName());

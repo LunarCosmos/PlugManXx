@@ -79,6 +79,7 @@ load:
   cannot-find: '&cNo se encontró el archivo y falló la búsqueda de descripciones.'
   invalid-description: '&cEse plugin tiene una descripción inválida.'
   invalid-plugin: '&cEse archivo no es un plugin válido.'
+  enable-failed: '&c{0} se cargó, pero falló durante onEnable. Revisa el stacktrace anterior.'
   loaded: '&9{0} ha sido cargado y activado.'
   missing-dependencies: '&cNo se pudo cargar {0}. Dependencias requeridas faltantes: {1}'
   plugin-dir: '&cCarpeta de plugins no encontrada.'
