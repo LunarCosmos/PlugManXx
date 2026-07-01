@@ -10,6 +10,7 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.logging.Level;
@@ -20,6 +21,7 @@ import java.util.logging.Level;
 public final class CrashDumpWriter {
     private static final DateTimeFormatter FILE_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS", Locale.ROOT);
     private static final DateTimeFormatter HUMAN_TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.ROOT);
+    private static final ZoneId SERVER_ZONE = ZoneId.systemDefault();
 
     private CrashDumpWriter() {
     }
@@ -31,7 +33,7 @@ public final class CrashDumpWriter {
             var dumpDirectory = getDumpDirectory();
             Files.createDirectories(dumpDirectory.toPath());
 
-            var dumpFile = new File(dumpDirectory, "plugmanx-crash-" + FILE_TIMESTAMP.format(LocalDateTime.now()) + ".log");
+            var dumpFile = new File(dumpDirectory, "plugmanx-crash-" + FILE_TIMESTAMP.format(LocalDateTime.now(SERVER_ZONE)) + ".log");
             Files.writeString(dumpFile.toPath(), createDump(context, throwable), StandardCharsets.UTF_8);
             var plugin = PlugManBukkit.getInstance();
             if (plugin != null) plugin.getLogger().warning("Crash dump written to " + dumpFile.getPath());
@@ -52,7 +54,7 @@ public final class CrashDumpWriter {
         try (var printWriter = new PrintWriter(writer)) {
             printWriter.println("PlugManX crash dump");
             printWriter.println("===================");
-            printWriter.println("Time: " + HUMAN_TIMESTAMP.format(LocalDateTime.now()));
+            printWriter.println("Time: " + HUMAN_TIMESTAMP.format(LocalDateTime.now(SERVER_ZONE)));
             printWriter.println("Context: " + (context == null || context.isBlank() ? "unknown" : context));
             printWriter.println("Thread: " + Thread.currentThread().getName());
             printWriter.println("Server: " + safeServerVersion());
