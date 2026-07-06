@@ -18,6 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PlugManConfigurationManager {
     public static final int CURRENT_CONFIG_VERSION = 5;
+    private static final String CONFIG_FILE_NAME = "config.yml";
 
     private final YamlConfigurationProvider configProvider;
     private final PluginLogger logger;
@@ -47,7 +48,7 @@ public class PlugManConfigurationManager {
     }
 
     public void reloadConfiguration() {
-        configProvider.loadConfiguration(new File(configProvider.getDataFolder(), "config.yml"));
+        configProvider.loadConfiguration(new File(configProvider.getDataFolder(), CONFIG_FILE_NAME));
         loadJacksonConfigurations();
         validateAndMigrateConfig();
         loadIgnoredPlugins();
@@ -58,7 +59,7 @@ public class PlugManConfigurationManager {
      */
     private void loadJacksonConfigurations() {
         try {
-            var configFile = new File(configProvider.getDataFolder(), "config.yml");
+            var configFile = new File(configProvider.getDataFolder(), CONFIG_FILE_NAME);
             plugManConfig = jacksonConfigService.loadPlugManConfig(configFile);
 
             var resourceMappingsFile = new File(configProvider.getDataFolder(), "resourcemaps.yml");
@@ -101,8 +102,8 @@ public class PlugManConfigurationManager {
      * Backup old configuration file
      */
     private void backupOldConfig() {
-        var oldConfig = new File(configProvider.getDataFolder(), "config.yml");
-        var backupConfig = new File(configProvider.getDataFolder(), "config.yml.old-" + System.currentTimeMillis());
+        var oldConfig = new File(configProvider.getDataFolder(), CONFIG_FILE_NAME);
+        var backupConfig = new File(configProvider.getDataFolder(), CONFIG_FILE_NAME + ".old-" + System.currentTimeMillis());
         oldConfig.renameTo(backupConfig);
     }
 
@@ -194,7 +195,7 @@ public class PlugManConfigurationManager {
 
     private boolean saveJacksonConfiguration() {
         try {
-            var configFile = new File(configProvider.getDataFolder(), "config.yml");
+            var configFile = new File(configProvider.getDataFolder(), CONFIG_FILE_NAME);
             jacksonConfigService.savePlugManConfig(plugManConfig, configFile);
             return true;
         } catch (Exception e) {

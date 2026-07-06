@@ -40,6 +40,7 @@ the need to restart the server.
 | /plugman restart [plugin&#124;all]    | Restart (disable/enable) a plugin.                                |
 | /plugman load [plugin]                | Load a plugin.                                                    |
 | /plugman reload [plugin&#124;all]     | Reload (unload/load) a plugin.                                    |
+| /plugman reloadconfig                 | Reload PlugMan config and messages.                               |
 | /plugman reloadmode [mode]            | View or change dependent reload mode.                             |
 | /plugman unload [plugin]              | Unload a plugin.                                                  |
 | /plugman check [plugin&#124;all] [-f] | Check if a plugin is up-to-date.                                  |
@@ -56,30 +57,31 @@ the need to restart the server.
 
 ## Permissions
 
-| Permission Node     | Default | Description                           |
-|---------------------|---------|---------------------------------------|
-| plugman.admin       | OP      | Allows use of all PlugMan commands.   |
-| plugman.update      | OP      | Allows user to see update messages.   |
-| plugman.help        | OP      | Allow use of the help command.        |
-| plugman.list        | OP      | Allow use of the list command.        |
-| plugman.info        | OP      | Allow use of the info command.        |
-| plugman.dump        | OP      | Allow use of the dump command.        |
-| plugman.usage       | OP      | Allow use of the usage command.       |
-| plugman.deps        | OP      | Allow use of the deps command.        |
-| plugman.lookup      | OP      | Allow use of the lookup command.      |
-| plugman.enable      | OP      | Allow use of the enable command.      |
-| plugman.enable.all  | OP      | Allow use of the enable all command.  |
-| plugman.disable     | OP      | Allow use of the disable command.     |
-| plugman.disable.all | OP      | Allow use of the disable all command. |
-| plugman.restart     | OP      | Allow use of the restart command.     |
-| plugman.restart.all | OP      | Allow use of the restart all command. |
-| plugman.load        | OP      | Allow use of the load command.        |
-| plugman.reload      | OP      | Allow use of the reload command.      |
-| plugman.reload.all  | OP      | Allow use of the reload all command.  |
-| plugman.reloadmode  | OP      | Allow use of the reloadmode command.  |
-| plugman.unload      | OP      | Allow use of the unload command.      |
-| plugman.check       | OP      | Allow use of the check command.       |
-| plugman.check.all   | OP      | Allow use of the check command.       |
+| Permission Node      | Default | Description                            |
+|----------------------|---------|----------------------------------------|
+| plugman.admin        | OP      | Allows use of all PlugMan commands.    |
+| plugman.update       | OP      | Allows user to see update messages.    |
+| plugman.help         | OP      | Allow use of the help command.         |
+| plugman.list         | OP      | Allow use of the list command.         |
+| plugman.info         | OP      | Allow use of the info command.         |
+| plugman.dump         | OP      | Allow use of the dump command.         |
+| plugman.usage        | OP      | Allow use of the usage command.        |
+| plugman.deps         | OP      | Allow use of the deps command.         |
+| plugman.lookup       | OP      | Allow use of the lookup command.       |
+| plugman.enable       | OP      | Allow use of the enable command.       |
+| plugman.enable.all   | OP      | Allow use of the enable all command.   |
+| plugman.disable      | OP      | Allow use of the disable command.      |
+| plugman.disable.all  | OP      | Allow use of the disable all command.  |
+| plugman.restart      | OP      | Allow use of the restart command.      |
+| plugman.restart.all  | OP      | Allow use of the restart all command.  |
+| plugman.load         | OP      | Allow use of the load command.         |
+| plugman.reload       | OP      | Allow use of the reload command.       |
+| plugman.reload.all   | OP      | Allow use of the reload all command.   |
+| plugman.reloadconfig | OP      | Allow use of the reloadconfig command. |
+| plugman.reloadmode   | OP      | Allow use of the reloadmode command.   |
+| plugman.unload       | OP      | Allow use of the unload command.       |
+| plugman.check        | OP      | Allow use of the check command.        |
+| plugman.check.all    | OP      | Allow use of the check command.        |
 
 ## Configuration
 

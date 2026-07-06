@@ -36,7 +36,7 @@ public class ReloadConfigCommand extends AbstractCommand {
     public static final String DESCRIPTION = "Reload PlugMan configuration and messages.";
     public static final String PERMISSION = "plugman.reloadconfig";
     public static final String USAGE = "/plugman reloadconfig";
-    public static final String[] SUB_PERMISSIONS = {""};
+    protected static final String[] SUB_PERMISSIONS = {""};
 
     public ReloadConfigCommand(CommandSender sender, ServiceRegistry registry) {
         super(sender, NAME, DESCRIPTION, PERMISSION, SUB_PERMISSIONS, USAGE, registry);
