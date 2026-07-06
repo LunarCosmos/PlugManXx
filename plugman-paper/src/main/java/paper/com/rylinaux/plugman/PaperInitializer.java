@@ -32,8 +32,9 @@ import core.com.rylinaux.plugman.config.PlugManConfigurationManager;
 import core.com.rylinaux.plugman.plugins.PluginManager;
 import core.com.rylinaux.plugman.util.reflection.ClassAccessor;
 import lombok.RequiredArgsConstructor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import paper.com.rylinaux.plugman.pluginmanager.PaperPluginManager;
 import paper.com.rylinaux.plugman.reloadstrategy.LegacyPaperReloadStrategy;
 import paper.com.rylinaux.plugman.reloadstrategy.ModernPaperReloadStrategy;
@@ -56,11 +57,15 @@ public class PaperInitializer {
     private final PlugManBukkit plugin;
     private static final Pattern VERSION_NUMBER_PATTERN = Pattern.compile("\\d+");
     private static final int MODERN_PAPER_VERSION = 2005;
-    private static final String WARNING_BORDER = ChatColor.DARK_GRAY + "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~";
-    private static final String WARNING_COLOR = ChatColor.YELLOW.toString();
-    private static final String DETAIL_COLOR = ChatColor.GRAY.toString();
-    private static final String VALUE_COLOR = ChatColor.AQUA.toString();
-    private static final String LINK_COLOR = ChatColor.BLUE.toString();
+    private static final int MODERN_CHAT_COLOR_VERSION = 2602;
+    private static final String WARNING_BORDER_TEXT = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~";
+    private static final String LEGACY_GREEN = "\u00A7a";
+    private static final String LEGACY_DARK_GRAY = "\u00A78";
+    private static final String LEGACY_WARNING_COLOR = "\u00A7e";
+    private static final String LEGACY_DETAIL_COLOR = "\u00A77";
+    private static final String LEGACY_VALUE_COLOR = "\u00A7b";
+    private static final String LEGACY_LINK_COLOR = "\u00A79";
+    private static final Component COMPONENT_PREFIX = Component.text("[PlugManX] ", NamedTextColor.GREEN);
     private PaperReloadStrategy paperReloadStrategy;
 
     /**
@@ -107,33 +112,70 @@ public class PaperInitializer {
 
         var strategy = paperReloadStrategy == null ? resolvePaperReloadStrategy() : paperReloadStrategy;
 
-        sendColoredPaperWarning(WARNING_BORDER);
-        sendColoredPaperWarning(WARNING_COLOR + "It seems like you're running on " + VALUE_COLOR + Bukkit.getName() + " (" + Bukkit.getVersion() + ")" + WARNING_COLOR + ".");
+        sendColoredPaperWarning(
+                LEGACY_DARK_GRAY + WARNING_BORDER_TEXT,
+                Component.text(WARNING_BORDER_TEXT, NamedTextColor.DARK_GRAY)
+        );
+        sendColoredPaperWarning(
+                LEGACY_WARNING_COLOR + "It seems like you're running on " + LEGACY_VALUE_COLOR + Bukkit.getName() + " (" + Bukkit.getVersion() + ")" + LEGACY_WARNING_COLOR + ".",
+                Component.text("It seems like you're running on ", NamedTextColor.YELLOW)
+                        .append(Component.text(Bukkit.getName() + " (" + Bukkit.getVersion() + ")", NamedTextColor.AQUA))
+                        .append(Component.text(".", NamedTextColor.YELLOW))
+        );
         if (config.getPlugManConfig().isPaperReloadDebug()) showPaperRuntimeDiagnostics(strategy);
-        sendColoredPaperWarning(WARNING_COLOR + "PlugManX Paper plugin reload support is experimental.");
-        sendColoredPaperWarning(WARNING_COLOR + "Also, if you encounter any issues, please join my discord: " + LINK_COLOR + "https://discord.gg/GxEFhVY6ff");
-        sendColoredPaperWarning(WARNING_COLOR + "Or create an issue on GitHub: " + LINK_COLOR + "https://github.com/Test-Account666/PlugManX");
-        sendColoredPaperWarning(WARNING_BORDER);
+        sendColoredPaperWarning(
+                LEGACY_WARNING_COLOR + "PlugManX Paper plugin reload support is experimental.",
+                Component.text("PlugManX Paper plugin reload support is experimental.", NamedTextColor.YELLOW)
+        );
+        sendColoredPaperWarning(
+                LEGACY_WARNING_COLOR + "Also, if you encounter any issues, please join my discord: " + LEGACY_LINK_COLOR + "https://discord.gg/GxEFhVY6ff",
+                Component.text("Also, if you encounter any issues, please join my discord: ", NamedTextColor.YELLOW)
+                        .append(Component.text("https://discord.gg/GxEFhVY6ff", NamedTextColor.BLUE))
+        );
+        sendColoredPaperWarning(
+                LEGACY_WARNING_COLOR + "Or create an issue on GitHub: " + LEGACY_LINK_COLOR + "https://github.com/Test-Account666/PlugManX",
+                Component.text("Or create an issue on GitHub: ", NamedTextColor.YELLOW)
+                        .append(Component.text("https://github.com/Test-Account666/PlugManX", NamedTextColor.BLUE))
+        );
+        sendColoredPaperWarning(
+                LEGACY_DARK_GRAY + WARNING_BORDER_TEXT,
+                Component.text(WARNING_BORDER_TEXT, NamedTextColor.DARK_GRAY)
+        );
 
         plugin.getLogger().info("You can disable this warning by setting 'showPaperWarning' to false in the config.yml");
     }
 
     private void showPaperRuntimeDiagnostics(PaperReloadStrategy strategy) {
-        sendColoredPaperWarning(DETAIL_COLOR + "Detected server software: " + VALUE_COLOR + Bukkit.getName());
-        sendColoredPaperWarning(DETAIL_COLOR + "Paper version: " + VALUE_COLOR + Bukkit.getVersion());
-        sendColoredPaperWarning(DETAIL_COLOR + "Bukkit version: " + VALUE_COLOR + Bukkit.getBukkitVersion());
-        sendColoredPaperWarning(DETAIL_COLOR + "Paper reload strategy: " + VALUE_COLOR + strategy.getName());
-        sendColoredPaperWarning(DETAIL_COLOR + "Modern Paper lifecycle events available: " + VALUE_COLOR + formatAvailability(strategy.isModernLifecycleAvailable()));
+        sendDiagnosticLine("Detected server software: ", Bukkit.getName());
+        sendDiagnosticLine("Paper version: ", Bukkit.getVersion());
+        sendDiagnosticLine("Bukkit version: ", Bukkit.getBukkitVersion());
+        sendDiagnosticLine("Paper reload strategy: ", strategy.getName());
+        sendDiagnosticLine("Modern Paper lifecycle events available: ", formatAvailability(strategy.isModernLifecycleAvailable()));
     }
 
-    private void sendColoredPaperWarning(String message) {
-        Bukkit.getConsoleSender().sendMessage(ChatColor.GREEN + "[PlugManX] " + message);
+    private void sendDiagnosticLine(String label, String value) {
+        sendColoredPaperWarning(
+                LEGACY_DETAIL_COLOR + label + LEGACY_VALUE_COLOR + value,
+                Component.text(label, NamedTextColor.GRAY).append(Component.text(value, NamedTextColor.AQUA))
+        );
+    }
+
+    private void sendColoredPaperWarning(String legacyMessage, Component modernMessage) {
+        if (isModernChatColorAvailable()) {
+            Bukkit.getConsoleSender().sendMessage(COMPONENT_PREFIX.append(modernMessage));
+            return;
+        }
+        Bukkit.getConsoleSender().sendMessage(LEGACY_GREEN + "[PlugManX] " + legacyMessage);
     }
 
     private PaperReloadStrategy resolvePaperReloadStrategy() {
         var paperVersion = parsePaperVersion(Bukkit.getBukkitVersion());
         if (paperVersion >= MODERN_PAPER_VERSION) return new ModernPaperReloadStrategy();
         return new LegacyPaperReloadStrategy();
+    }
+
+    private boolean isModernChatColorAvailable() {
+        return parsePaperVersion(Bukkit.getBukkitVersion()) >= MODERN_CHAT_COLOR_VERSION;
     }
 
     private String formatAvailability(boolean available) {

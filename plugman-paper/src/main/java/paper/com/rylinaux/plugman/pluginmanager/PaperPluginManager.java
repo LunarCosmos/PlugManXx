@@ -95,6 +95,9 @@ public class PaperPluginManager extends BasePluginManager {
 
     @Delegate
     private final BukkitPluginManager _bukkitPluginManager;
+    private Boolean recipeCleanupOptimizationAvailable;
+    private Method removeRecipeWithoutUpdateMethod;
+    private Method updateRecipesMethod;
 
     public PaperPluginManager(BukkitPluginManager bukkitPluginManager) {
         _bukkitPluginManager = bukkitPluginManager;
@@ -998,8 +1001,79 @@ public class PaperPluginManager extends BasePluginManager {
 
     private void cleanupPluginRecipes(Plugin plugin) {
         var namespace = plugin.getName().toLowerCase(Locale.ROOT);
+        if (!isRecipeCleanupOptimizationAvailable()) {
+            var recipes = collectPluginRecipes(namespace);
+            recipes.forEach(Bukkit::removeRecipe);
+            return;
+        }
+
+        var removedRecipes = removePluginRecipesWithIterator(namespace);
+        if (removedRecipes < 0) removedRecipes = removePluginRecipesWithApi(namespace);
+        if (removedRecipes > 0) updateRecipes();
+    }
+
+    private boolean isRecipeCleanupOptimizationAvailable() {
+        if (recipeCleanupOptimizationAvailable == null) {
+            removeRecipeWithoutUpdateMethod = findServerMethod("removeRecipe", NamespacedKey.class, boolean.class);
+            updateRecipesMethod = findServerMethod("updateRecipes");
+            recipeCleanupOptimizationAvailable = removeRecipeWithoutUpdateMethod != null && updateRecipesMethod != null;
+        }
+
+        return recipeCleanupOptimizationAvailable;
+    }
+
+    private Method findServerMethod(String methodName, Class<?>... parameterTypes) {
+        try {
+            var method = Bukkit.getServer().getClass().getMethod(methodName, parameterTypes);
+            method.setAccessible(true);
+            return method;
+        } catch (NoSuchMethodException | SecurityException ignored) {
+            return null;
+        }
+    }
+
+    private void updateRecipes() {
+        try {
+            updateRecipesMethod.invoke(Bukkit.getServer());
+        } catch (ReflectiveOperationException exception) {
+            PlugManBukkit.getInstance().getLogger().log(Level.WARNING, "Failed to update recipes after unloading plugin recipes", exception);
+        }
+    }
+
+    private int removePluginRecipesWithIterator(String namespace) {
+        var iterator = Bukkit.recipeIterator();
+        var removedRecipes = 0;
+
+        try {
+            while (iterator.hasNext()) {
+                if (!isPluginRecipe(iterator.next(), namespace)) continue;
+                iterator.remove();
+                removedRecipes++;
+            }
+            return removedRecipes;
+        } catch (UnsupportedOperationException ignored) {
+            return -1;
+        }
+    }
+
+    private int removePluginRecipesWithApi(String namespace) {
         var recipes = collectPluginRecipes(namespace);
-        recipes.forEach(Bukkit::removeRecipe);
+        var removedRecipes = 0;
+
+        for (var recipe : recipes) {
+            if (removeRecipeWithoutUpdate(recipe)) removedRecipes++;
+        }
+
+        return removedRecipes;
+    }
+
+    private boolean removeRecipeWithoutUpdate(NamespacedKey recipe) {
+        try {
+            return Boolean.TRUE.equals(removeRecipeWithoutUpdateMethod.invoke(Bukkit.getServer(), recipe, false));
+        } catch (ReflectiveOperationException exception) {
+            PlugManBukkit.getInstance().getLogger().log(Level.WARNING, "Failed to remove recipe without updating recipe books", exception);
+            return Bukkit.removeRecipe(recipe);
+        }
     }
 
     private List<NamespacedKey> collectPluginRecipes(String namespace) {
@@ -1012,7 +1086,11 @@ public class PaperPluginManager extends BasePluginManager {
     }
 
     private void collectPluginRecipe(Recipe recipe, String namespace, List<NamespacedKey> recipes) {
-        if (recipe instanceof Keyed keyed && keyed.getKey().getNamespace().equals(namespace)) recipes.add(keyed.getKey());
+        if (isPluginRecipe(recipe, namespace)) recipes.add(((Keyed) recipe).getKey());
+    }
+
+    private boolean isPluginRecipe(Recipe recipe, String namespace) {
+        return recipe instanceof Keyed keyed && keyed.getKey().getNamespace().equals(namespace);
     }
 
     private void cleanupListeners(Plugin plugin, CommonUnloadData data) {
