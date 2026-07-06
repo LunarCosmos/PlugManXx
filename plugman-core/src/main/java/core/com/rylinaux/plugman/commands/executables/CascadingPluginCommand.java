@@ -96,11 +96,16 @@ abstract class CascadingPluginCommand extends AbstractCommand {
 
         var failedPlugins = new ArrayList<String>();
 
-        for (var plugin : plugins) {
-            var success = runPluginWithCommandBatch(sender, plugin);
+        getPluginManager().beginCommandUpdateBatch();
+        try {
+            for (var plugin : plugins) {
+                var success = runPluginWithCommandBatch(sender, plugin);
 
-            if (success) continue;
-            failedPlugins.add(plugin.getName());
+                if (success) continue;
+                failedPlugins.add(plugin.getName());
+            }
+        } finally {
+            getPluginManager().endCommandUpdateBatch();
         }
 
         if (failedPlugins.isEmpty()) {

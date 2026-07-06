@@ -470,6 +470,8 @@ public abstract class BasePluginManager implements PluginManager {
      * Common command loading logic.
      */
     protected synchronized void scheduleCommandLoading() {
+        if (deferCommandSyncIfBatching()) return;
+
         PlugManBukkit.getInstance().get(ThreadUtil.class).syncLater(this::syncCommands, 500L);
     }
 

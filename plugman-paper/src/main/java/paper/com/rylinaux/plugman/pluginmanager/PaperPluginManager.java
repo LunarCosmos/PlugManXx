@@ -959,6 +959,8 @@ public class PaperPluginManager extends BasePluginManager {
 
     @Override
     protected synchronized void scheduleCommandLoading() {
+        if (deferCommandSyncIfBatching()) return;
+
         if (isFolia()) {
             var foliaLib = new com.tcoded.folialib.FoliaLib(PlugManBukkit.getInstance());
             foliaLib.getScheduler().runLater(this::syncCommands, 500, TimeUnit.MILLISECONDS);
