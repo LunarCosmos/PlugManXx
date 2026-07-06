@@ -21,6 +21,7 @@ commands:
       /plugman deps <plugin>
       /plugman (enable|disable|restart) <plugin|all>
       /plugman (info|usage|load|reload|unload) <plugin>
+      /plugman reloadconfig
       /plugman reloadmode [ALL|REQUIRED_ONLY|OFF]
 permissions:
   plugman.admin:
@@ -42,6 +43,7 @@ permissions:
       plugman.restart: true
       plugman.restart.all: true
       plugman.reloadmode: true
+      plugman.reloadconfig: true
       plugman.load: true
       plugman.reload: true
       plugman.unload: true
@@ -91,6 +93,9 @@ permissions:
     default: op
   plugman.reloadmode:
     description: Allows use of the reload mode command.
+    default: op
+  plugman.reloadconfig:
+    description: Allows use of the reload config command.
     default: op
   plugman.load:
     description: Allows use of the load command.

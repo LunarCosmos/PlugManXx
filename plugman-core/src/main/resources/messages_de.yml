@@ -56,6 +56,7 @@ help:
   restart: '&7- &a/plugman restart <plugin|all> &f- &7Startet ein Plugin neu.'
   load: '&7- &a/plugman load <plugin> &f- &7Lädt ein Plugin.'
   reload: '&7- &a/plugman reload <plugin|all> &f- &7Lädt ein Plugin neu.'
+  reloadconfig: '&7- &a/plugman reloadconfig &f- &7Lädt PlugMan-Konfiguration und Nachrichten neu.'
   reloadmode: '&7- &a/plugman reloadmode [ALL|REQUIRED_ONLY|OFF] &f- &7Zeigt oder ändert das Dependent-Reload-Verhalten.'
   unload: '&7- &a/plugman unload <plugin> &f- &7Entlädt ein Plugin.'
   check: '&7- &a/plugman check <plugin|all> [-f] &f- &7Überprüft, ob ein Plugin aktuell ist (-f legt alle in Datei ab).'
@@ -92,6 +93,8 @@ reload:
   blocked-dependents: '&c{0} konnte nicht neu geladen werden; aktive Plugins hängen davon ab: {1}. Lade oder stoppe diese Plugins zuerst, oder starte den Server neu.'
   confirm-all: '&cDas Neuladen von {0} Plugins kann den Server abstürzen lassen oder instabil machen. Führe &e/plugman reload all {1}&c aus, um zu bestätigen.'
   reloaded: '&9{0} wurde neu geladen.'
+reloadconfig:
+  reloaded: '&9PlugMan-Konfiguration und Nachrichten wurden neu geladen.'
 reloadmode:
   changed: '&9Dependent-Reload-Modus wurde auf &a{0}&9 gesetzt.'
   current: '&9Aktueller Dependent-Reload-Modus: &a{0}&9.'

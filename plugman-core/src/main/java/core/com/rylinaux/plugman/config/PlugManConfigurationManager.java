@@ -46,6 +46,13 @@ public class PlugManConfigurationManager {
         loadIgnoredPlugins();
     }
 
+    public void reloadConfiguration() {
+        configProvider.loadConfiguration(new File(configProvider.getDataFolder(), "config.yml"));
+        loadJacksonConfigurations();
+        validateAndMigrateConfig();
+        loadIgnoredPlugins();
+    }
+
     /**
      * Load Jackson-based configurations
      */

@@ -57,6 +57,7 @@ public class PlugManCommandHandler implements CommandExecutor {
             case "disable" -> new DisableCommand(plugManSender, registry);
             case "restart" -> new RestartCommand(plugManSender, registry);
             case "reloadmode" -> new ReloadModeCommand(plugManSender, registry);
+            case "reloadconfig" -> new ReloadConfigCommand(plugManSender, registry);
             case "load" -> new LoadCommand(plugManSender, registry);
             case "reload" -> new ReloadCommand(plugManSender, registry);
             case "unload" -> new UnloadCommand(plugManSender, registry);

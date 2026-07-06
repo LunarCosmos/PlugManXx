@@ -54,7 +54,7 @@ public class PlugManTabCompleter implements TabCompleter {
     /**
      * Valid command names.
      */
-    private static final String[] COMMANDS = {"check", "deps", "disable", "dump", "enable", "help", "info", "list", "load", "lookup", "reload", "reloadmode", "restart", "unload", "usage"};
+    private static final String[] COMMANDS = {"check", "deps", "disable", "dump", "enable", "help", "info", "list", "load", "lookup", "reload", "reloadconfig", "reloadmode", "restart", "unload", "usage"};
     private static final List<String> RELOAD_MODES = List.of("ALL", "REQUIRED_ONLY", "OFF");
 
     @Override

@@ -71,6 +71,10 @@ public class MessageFormatter {
         return formatMessage(true, key, args);
     }
 
+    public void reloadMessages() {
+        messageFile.reload();
+    }
+
     /**
      * Returns the formatted version of the message.
      *

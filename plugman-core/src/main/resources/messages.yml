@@ -56,6 +56,7 @@ help:
   restart: '&7- &a/{0} restart <plugin|all> &f- &7Restart a plugin.'
   load: '&7- &a/{0} load <plugin> &f- &7Load a plugin.'
   reload: '&7- &a/{0} reload <plugin|all> &f- &7Reload a plugin.'
+  reloadconfig: '&7- &a/{0} reloadconfig &f- &7Reload PlugMan config and messages.'
   reloadmode: '&7- &a/{0} reloadmode [ALL|REQUIRED_ONLY|OFF] &f- &7View or change dependent reload behavior.'
   unload: '&7- &a/{0} unload <plugin> &f- &7Unload a plugin.'
   check: '&7- &a/{0} check <plugin|all> [-f] &f- &7Check if a plugin is up-to-date (-f dumps to file for all).'
@@ -92,6 +93,8 @@ reload:
   blocked-dependents: '&cCould not reload {0}; active plugins depend on it: {1}. Reload or stop those plugins first, or restart the server.'
   confirm-all: '&cReloading {0} plugins can crash or destabilize the server. Run &e/plugman reload all {1}&c to confirm.'
   reloaded: '&9{0} has been reloaded.'
+reloadconfig:
+  reloaded: '&9PlugMan config and messages have been reloaded.'
 reloadmode:
   changed: '&9Dependent reload mode set to &a{0}&9.'
   current: '&9Current dependent reload mode: &a{0}&9.'
