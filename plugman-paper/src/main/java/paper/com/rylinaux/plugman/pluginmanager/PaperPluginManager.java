@@ -93,6 +93,9 @@ public class PaperPluginManager extends BasePluginManager {
     private static final String METHOD_NOT_FOUND_IN_MESSAGE = " method not found in ";
     private static final String CREATE_DEPENDENCY_TREE_METHOD = "createDependencyTree";
     private static final String GET_DEPENDENCY_TREE_METHOD = "getDependencyTree";
+    private static final String RECIPE_CLEANUP_FINISHED_LOG_PREFIX = "recipe cleanup finished for ";
+    private static final String RECIPE_CLEANUP_TOOK_LOG_PART = ", took=";
+    private static final String RECIPES_FOR_NAMESPACE_LOG_PART = " recipes for namespace ";
 
     @Delegate
     private final BukkitPluginManager _bukkitPluginManager;
@@ -1024,8 +1027,8 @@ public class PaperPluginManager extends BasePluginManager {
         var removedRecipes = removePluginRecipesWithRecipeMap(namespace);
         if (removedRecipes >= 0) {
             if (removedRecipes > 0) updateRecipes();
-            debugPaperReload("recipe cleanup finished for " + plugin.getName() + " using RecipeMap path; removed="
-                    + removedRecipes + ", took=" + elapsedMillis(started) + "ms");
+            debugPaperReload(RECIPE_CLEANUP_FINISHED_LOG_PREFIX + plugin.getName() + " using RecipeMap path; removed="
+                    + removedRecipes + RECIPE_CLEANUP_TOOK_LOG_PART + elapsedMillis(started) + "ms");
             return;
         }
 
@@ -1034,15 +1037,15 @@ public class PaperPluginManager extends BasePluginManager {
             debugPaperReload("recipe cleanup falling back to Bukkit.removeRecipe path for " + plugin.getName()
                     + "; recipes=" + recipes.size());
             recipes.forEach(Bukkit::removeRecipe);
-            debugPaperReload("recipe cleanup finished for " + plugin.getName() + " using Bukkit path; removed="
-                    + recipes.size() + ", took=" + elapsedMillis(started) + "ms");
+            debugPaperReload(RECIPE_CLEANUP_FINISHED_LOG_PREFIX + plugin.getName() + " using Bukkit path; removed="
+                    + recipes.size() + RECIPE_CLEANUP_TOOK_LOG_PART + elapsedMillis(started) + "ms");
             return;
         }
 
         removedRecipes = removePluginRecipesWithApi(namespace);
         if (removedRecipes > 0) updateRecipes();
-        debugPaperReload("recipe cleanup finished for " + plugin.getName() + " using Paper API path; removed="
-                + removedRecipes + ", took=" + elapsedMillis(started) + "ms");
+        debugPaperReload(RECIPE_CLEANUP_FINISHED_LOG_PREFIX + plugin.getName() + " using Paper API path; removed="
+                + removedRecipes + RECIPE_CLEANUP_TOOK_LOG_PART + elapsedMillis(started) + "ms");
     }
 
     private boolean isRecipeCleanupOptimizationAvailable() {
@@ -1094,7 +1097,7 @@ public class PaperPluginManager extends BasePluginManager {
             var recipeHolders = getRecipeHolders(recipeMap);
             var retainedRecipes = new ArrayList<Object>(recipeHolders.size());
             var removedRecipes = 0;
-            debugPaperReload("RecipeMap cleanup scanning " + recipeHolders.size() + " recipes for namespace " + namespace);
+            debugPaperReload("RecipeMap cleanup scanning " + recipeHolders.size() + RECIPES_FOR_NAMESPACE_LOG_PART + namespace);
 
             for (var recipeHolder : recipeHolders) {
                 if (isRecipeHolderInNamespace(recipeHolder, namespace)) {
@@ -1119,7 +1122,7 @@ public class PaperPluginManager extends BasePluginManager {
 
             var updatedRecipeMap = createMethod.invoke(null, retainedRecipes);
             setFieldValueInHierarchy(recipeManager, "recipes", updatedRecipeMap);
-            debugPaperReload("RecipeMap cleanup removed " + removedRecipes + " recipes for namespace " + namespace
+            debugPaperReload("RecipeMap cleanup removed " + removedRecipes + RECIPES_FOR_NAMESPACE_LOG_PART + namespace
                     + "; retained=" + retainedRecipes.size());
             return removedRecipes;
         } catch (ReflectiveOperationException | RuntimeException exception) {
@@ -1160,7 +1163,7 @@ public class PaperPluginManager extends BasePluginManager {
     private int removePluginRecipesWithApi(String namespace) {
         var recipes = collectPluginRecipes(namespace);
         var removedRecipes = 0;
-        debugPaperReload("Paper API recipe cleanup removing " + recipes.size() + " recipes for namespace " + namespace);
+        debugPaperReload("Paper API recipe cleanup removing " + recipes.size() + RECIPES_FOR_NAMESPACE_LOG_PART + namespace);
 
         for (var recipe : recipes) {
             if (removeRecipeWithoutUpdate(recipe)) removedRecipes++;
