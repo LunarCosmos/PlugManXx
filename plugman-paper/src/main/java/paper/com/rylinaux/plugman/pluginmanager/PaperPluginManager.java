@@ -62,6 +62,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -636,6 +637,20 @@ public class PaperPluginManager extends BasePluginManager {
         return null;
     }
 
+    private void setFieldValueInHierarchy(Object instance, String fieldName, Object value) throws IllegalAccessException, NoSuchFieldException {
+        var type = instance.getClass();
+        while (type != null) {
+            var field = findDeclaredField(type, fieldName);
+            if (field != null) {
+                field.set(instance, value);
+                return;
+            }
+            type = type.getSuperclass();
+        }
+
+        throw new NoSuchFieldException(fieldName + " field not found in " + instance.getClass().getName());
+    }
+
     private Field findDeclaredField(Class<?> type, String fieldName) {
         try {
             var field = type.getDeclaredField(fieldName);
@@ -1003,15 +1018,31 @@ public class PaperPluginManager extends BasePluginManager {
 
     private void cleanupPluginRecipes(Plugin plugin) {
         var namespace = plugin.getName().toLowerCase(Locale.ROOT);
-        if (!isRecipeCleanupOptimizationAvailable()) {
-            var recipes = collectPluginRecipes(namespace);
-            recipes.forEach(Bukkit::removeRecipe);
+        var started = System.nanoTime();
+        debugPaperReload("recipe cleanup started for " + plugin.getName() + " using namespace " + namespace);
+
+        var removedRecipes = removePluginRecipesWithRecipeMap(namespace);
+        if (removedRecipes >= 0) {
+            if (removedRecipes > 0) updateRecipes();
+            debugPaperReload("recipe cleanup finished for " + plugin.getName() + " using RecipeMap path; removed="
+                    + removedRecipes + ", took=" + elapsedMillis(started) + "ms");
             return;
         }
 
-        var removedRecipes = removePluginRecipesWithIterator(namespace);
-        if (removedRecipes < 0) removedRecipes = removePluginRecipesWithApi(namespace);
+        if (!isRecipeCleanupOptimizationAvailable()) {
+            var recipes = collectPluginRecipes(namespace);
+            debugPaperReload("recipe cleanup falling back to Bukkit.removeRecipe path for " + plugin.getName()
+                    + "; recipes=" + recipes.size());
+            recipes.forEach(Bukkit::removeRecipe);
+            debugPaperReload("recipe cleanup finished for " + plugin.getName() + " using Bukkit path; removed="
+                    + recipes.size() + ", took=" + elapsedMillis(started) + "ms");
+            return;
+        }
+
+        removedRecipes = removePluginRecipesWithApi(namespace);
         if (removedRecipes > 0) updateRecipes();
+        debugPaperReload("recipe cleanup finished for " + plugin.getName() + " using Paper API path; removed="
+                + removedRecipes + ", took=" + elapsedMillis(started) + "ms");
     }
 
     private boolean isRecipeCleanupOptimizationAvailable() {
@@ -1019,6 +1050,7 @@ public class PaperPluginManager extends BasePluginManager {
             removeRecipeWithoutUpdateMethod = findServerMethod("removeRecipe", NamespacedKey.class, boolean.class);
             updateRecipesMethod = findServerMethod("updateRecipes");
             recipeCleanupOptimizationAvailable = removeRecipeWithoutUpdateMethod != null && updateRecipesMethod != null;
+            debugPaperReload("recipe cleanup Paper API optimization available=" + recipeCleanupOptimizationAvailable);
         }
 
         return recipeCleanupOptimizationAvailable;
@@ -1036,31 +1068,99 @@ public class PaperPluginManager extends BasePluginManager {
 
     private void updateRecipes() {
         try {
+            if (updateRecipesMethod == null) updateRecipesMethod = findServerMethod("updateRecipes");
+            if (updateRecipesMethod == null) {
+                debugPaperReload("recipe update skipped; updateRecipes method unavailable");
+                return;
+            }
+            var started = System.nanoTime();
             updateRecipesMethod.invoke(Bukkit.getServer());
+            debugPaperReload("recipe update finished in " + elapsedMillis(started) + "ms");
         } catch (ReflectiveOperationException exception) {
             PlugManBukkit.getInstance().getLogger().log(Level.WARNING, "Failed to update recipes after unloading plugin recipes", exception);
         }
     }
 
-    private int removePluginRecipesWithIterator(String namespace) {
-        var iterator = Bukkit.recipeIterator();
-        var removedRecipes = 0;
+    private int removePluginRecipesWithRecipeMap(String namespace) {
+        try {
+            var minecraftServer = invokeNoArgMethod(Bukkit.getServer(), "getServer");
+            var recipeManager = invokeNoArgMethod(minecraftServer, "getRecipeManager");
+            var recipeMap = getFieldValueFromHierarchy(recipeManager, "recipes");
+            if (recipeMap == null) {
+                debugPaperReload("RecipeMap cleanup unavailable: recipe manager field 'recipes' is null");
+                return -1;
+            }
+
+            var recipeHolders = getRecipeHolders(recipeMap);
+            var retainedRecipes = new ArrayList<Object>(recipeHolders.size());
+            var removedRecipes = 0;
+            debugPaperReload("RecipeMap cleanup scanning " + recipeHolders.size() + " recipes for namespace " + namespace);
+
+            for (var recipeHolder : recipeHolders) {
+                if (isRecipeHolderInNamespace(recipeHolder, namespace)) {
+                    removedRecipes++;
+                } else {
+                    retainedRecipes.add(recipeHolder);
+                }
+            }
+
+            if (removedRecipes == 0) {
+                debugPaperReload("RecipeMap cleanup found no recipes for namespace " + namespace);
+                return 0;
+            }
+
+            var createMethod = getAllMethods(recipeMap.getClass()).stream()
+                    .filter(method -> method.getName().equals("create"))
+                    .filter(method -> method.getParameterTypes().length == 1)
+                    .filter(method -> Iterable.class.isAssignableFrom(method.getParameterTypes()[0]))
+                    .findFirst()
+                    .orElseThrow(() -> new NoSuchMethodException("RecipeMap#create(Iterable) not found"));
+            createMethod.setAccessible(true);
+
+            var updatedRecipeMap = createMethod.invoke(null, retainedRecipes);
+            setFieldValueInHierarchy(recipeManager, "recipes", updatedRecipeMap);
+            debugPaperReload("RecipeMap cleanup removed " + removedRecipes + " recipes for namespace " + namespace
+                    + "; retained=" + retainedRecipes.size());
+            return removedRecipes;
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            debugPaperReload("RecipeMap cleanup unavailable: " + exception.getClass().getName() + ": " + exception.getMessage());
+            return -1;
+        }
+    }
+
+    private Collection<?> getRecipeHolders(Object recipeMap) throws ReflectiveOperationException {
+        var values = invokeNoArgMethod(recipeMap, "values");
+        if (values instanceof Collection<?> collection) return collection;
+        throw new IllegalStateException("RecipeMap#values() did not return a collection");
+    }
+
+    private boolean isRecipeHolderInNamespace(Object recipeHolder, String namespace) throws ReflectiveOperationException {
+        var id = invokeNoArgMethod(recipeHolder, "id");
+        var key = recipeKeyString(id);
+        var separator = key.indexOf(':');
+        if (separator > 0 && key.substring(0, separator).equals(namespace)) return true;
+
+        return key.contains(" / " + namespace + ":");
+    }
+
+    private String recipeKeyString(Object id) throws ReflectiveOperationException {
+        try {
+            return String.valueOf(invokeNoArgMethod(id, "location"));
+        } catch (NoSuchMethodException ignored) {
+            // Paper 26.2 uses ResourceKey#identifier() for the recipe id.
+        }
 
         try {
-            while (iterator.hasNext()) {
-                if (!isPluginRecipe(iterator.next(), namespace)) continue;
-                iterator.remove();
-                removedRecipes++;
-            }
-            return removedRecipes;
-        } catch (UnsupportedOperationException ignored) {
-            return -1;
+            return String.valueOf(invokeNoArgMethod(id, "identifier"));
+        } catch (NoSuchMethodException ignored) {
+            return String.valueOf(id);
         }
     }
 
     private int removePluginRecipesWithApi(String namespace) {
         var recipes = collectPluginRecipes(namespace);
         var removedRecipes = 0;
+        debugPaperReload("Paper API recipe cleanup removing " + recipes.size() + " recipes for namespace " + namespace);
 
         for (var recipe : recipes) {
             if (removeRecipeWithoutUpdate(recipe)) removedRecipes++;
@@ -1084,7 +1184,12 @@ public class PaperPluginManager extends BasePluginManager {
 
         while (iterator.hasNext()) collectPluginRecipe(iterator.next(), namespace, recipes);
 
+        debugPaperReload("collected " + recipes.size() + " Bukkit recipes for namespace " + namespace);
         return recipes;
+    }
+
+    private long elapsedMillis(long started) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
     }
 
     private void collectPluginRecipe(Recipe recipe, String namespace, List<NamespacedKey> recipes) {
