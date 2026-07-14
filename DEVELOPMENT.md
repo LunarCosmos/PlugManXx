@@ -186,6 +186,69 @@ An IDE decompiler can be used for easier reading, but confirm reflection targets
 
 When comparing Paper versions, run the same `jar tf` and `javap` commands against both runtime JARs. Record renamed classes, changed parameter types, new overloads, moved fields, and changed return types before adding a compatibility branch.
 
+### Small API Adaptation Tutorial
+
+Assume a new Paper version produces this debug message during recipe cleanup:
+
+```text
+NoSuchMethodException: location method not found in net.minecraft.resources.ResourceKey
+```
+
+1. Find the affected class in the runtime JAR.
+
+   Windows PowerShell:
+
+   ```powershell
+   jar tf .\versions\26.2\paper-26.2.jar | Select-String "net/minecraft/resources/ResourceKey"
+   ```
+
+   Linux:
+
+   ```bash
+   jar tf ./versions/26.2/paper-26.2.jar | grep 'net/minecraft/resources/ResourceKey'
+   ```
+
+2. Inspect the available methods in both the previously working JAR and the new JAR.
+
+   Windows PowerShell:
+
+   ```powershell
+   & "$env:JAVA_HOME\bin\javap.exe" -classpath .\versions\26.1\paper-26.1.jar -p -s net.minecraft.resources.ResourceKey
+   & "$env:JAVA_HOME\bin\javap.exe" -classpath .\versions\26.2\paper-26.2.jar -p -s net.minecraft.resources.ResourceKey
+   ```
+
+   Linux:
+
+   ```bash
+   "$JAVA_HOME/bin/javap" -classpath ./versions/26.1/paper-26.1.jar -p -s net.minecraft.resources.ResourceKey
+   "$JAVA_HOME/bin/javap" -classpath ./versions/26.2/paper-26.2.jar -p -s net.minecraft.resources.ResourceKey
+   ```
+
+3. Identify the smallest compatibility change. If `location()` was replaced by `identifier()`, keep support for both instead of checking only the Paper version:
+
+   ```java
+   private String resourceKeyString(Object key) throws ReflectiveOperationException {
+       try {
+           return String.valueOf(invokeNoArgMethod(key, "location"));
+       } catch (NoSuchMethodException ignored) {
+           // Newer Paper versions expose the identifier under a different method name.
+       }
+
+       try {
+           return String.valueOf(invokeNoArgMethod(key, "identifier"));
+       } catch (NoSuchMethodException ignored) {
+           return String.valueOf(key);
+       }
+   }
+   ```
+
+4. Log which branch was selected when `paperReloadDebug` is enabled. This makes the next compatibility report easier to diagnose.
+5. Test the same build on both Paper versions. Verify the complete reload twice, not only the reflection call, because stale state often appears on the second reload.
+
+The same process applies when a method changes parameters. For example, if `FileProviderSource#prepareContext` changes, inspect all overloads with `javap -p -s`, then attempt compatible signatures in a safe order such as `Path`, `Object`, and `String`. If the method is optional on an older supported version, keep a documented fallback instead of treating its absence as a fatal error.
+
+Do not catch every reflection error and silently continue. Only `NoSuchMethodException` or another expected capability mismatch should select a fallback. Invocation failures from a method that was found should be logged and treated as a real load or unload failure.
+
 ### Main Compatibility Areas
 
 - `PaperReflectionNames`: Paper internal class and field names.
