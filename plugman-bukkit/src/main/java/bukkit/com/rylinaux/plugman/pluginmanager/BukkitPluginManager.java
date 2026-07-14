@@ -437,6 +437,7 @@ public class BukkitPluginManager extends BasePluginManager {
         if (unloadData == null) return new PluginResult(false, "unload.failed");
 
         disableAndCleanupPlugin(plugin, unloadData);
+        reportUnloadLeaks(plugin);
         closeClassLoader(plugin);
 
         // Will not work on processes started with the -XX:+DisableExplicitGC flag, but lets try it anyway.

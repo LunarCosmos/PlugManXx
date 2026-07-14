@@ -32,6 +32,7 @@ enable:
   enabled: '&9{0} ha sido habilitado.'
   failed: '&c{0} no pudo habilitarse. Revisa el registro del servidor para ver el error del plugin.'
 error:
+  dependency-cycle: '&cDependency cycle detected: {0}'
   ignored: '&cPlugMan está configurado para ignorar ese plugin.'
   invalid-plugin: '&cEse no es un plugin válido.'
   no-permission: '&cNo tienes permiso para hacer eso.'
@@ -87,6 +88,7 @@ lookup:
   found: '&9/{0} está registrado a {1}.'
   not-found: '&cEl comando "/{0}" no está registrado en ningún plugin.yml.'
 reload:
+  summary: '&9Reloaded {0} plugins in {1} seconds (&c{2} failed&9, &e{3} skipped&9).'
   all: '&9Todos los plugins han sido recargados.'
   all-failed: '&cAlgunos plugins fallaron al recargar: {0}'
   blocked-dependents: '&cNo se pudo recargar {0}; hay plugins activos que dependen de él: {1}. Recarga o detén esos plugins primero, o reinicia el servidor.'
@@ -98,6 +100,7 @@ reloadmode:
   invalid: '&cModo de recarga de dependientes inválido: {0}. Usa ALL, REQUIRED_ONLY u OFF.'
   save-failed: '&cNo se pudo guardar el modo de recarga de dependientes. Revisa el log del servidor.'
 restart:
+  summary: '&9Restarted {0} plugins in {1} seconds (&c{2} failed&9, &e{3} skipped&9).'
   all: '&9Todos los plugins han sido reiniciados.'
   confirm-all: '&cReiniciar {0} plugins puede bloquear o desestabilizar el servidor. Ejecuta &e/plugman restart all {1}&c para confirmar.'
   blocked-dependents: '&cNo se pudo reiniciar {0}; hay plugins activos que dependen de él: {1}. Reinicia o detén esos plugins primero, o reinicia el servidor.'

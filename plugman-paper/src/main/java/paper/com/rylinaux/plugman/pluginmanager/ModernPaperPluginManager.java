@@ -69,6 +69,7 @@ public class ModernPaperPluginManager extends PaperPluginManager {
         scheduleCleanupTask();
 
         syncCommands();
+        reportUnloadLeaks(plugin);
         closeClassLoader(plugin);
         System.gc();
 

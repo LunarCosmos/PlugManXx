@@ -22,6 +22,14 @@ public class MessageMigrationService {
     private static final String HELP_SECTION = "help";
     private static final String DEPS_SECTION = "deps";
     private static final String RELOAD_MODE_SECTION = "reloadmode";
+    private static final BulkMessageDefaults DEFAULT_BULK_MESSAGES = new BulkMessageDefaults(
+            "&cDependency cycle detected: {0}",
+            "&9Reloaded {0} plugins in {1} seconds (&c{2} failed&9, &e{3} skipped&9).",
+            "&9Restarted {0} plugins in {1} seconds (&c{2} failed&9, &e{3} skipped&9).");
+    private static final BulkMessageDefaults GERMAN_BULK_MESSAGES = new BulkMessageDefaults(
+            "&cAbhaengigkeitszyklus erkannt: {0}",
+            "&9{0} Plugins wurden in {1} Sekunden neu geladen (&c{2} fehlgeschlagen&9, &e{3} uebersprungen&9).",
+            "&9{0} Plugins wurden in {1} Sekunden neu gestartet (&c{2} fehlgeschlagen&9, &e{3} uebersprungen&9).");
     private static final MessageDefaults DEFAULT_MESSAGES = new MessageDefaults(
             "&9Paper Plugins (&b{0}&9): {1}",
             "&9Bukkit Plugins (&e{0}&9): {1}",
@@ -116,7 +124,10 @@ public class MessageMigrationService {
 
         try {
             var lines = Files.readAllLines(messagesFile.toPath(), StandardCharsets.UTF_8);
-            var updatedLines = addMissingEntries(lines, defaults);
+            var bulkDefaults = messagesFile.getName().equals(GERMAN_MESSAGES_FILE)
+                    ? GERMAN_BULK_MESSAGES
+                    : DEFAULT_BULK_MESSAGES;
+            var updatedLines = addMissingEntries(lines, defaults, bulkDefaults);
             if (updatedLines == null) return;
 
             Files.write(messagesFile.toPath(), updatedLines, StandardCharsets.UTF_8);
@@ -126,7 +137,9 @@ public class MessageMigrationService {
         }
     }
 
-    private List<String> addMissingEntries(List<String> lines, MessageDefaults defaults) {
+    private List<String> addMissingEntries(List<String> lines,
+                                           MessageDefaults defaults,
+                                           BulkMessageDefaults bulkDefaults) {
         var updatedLines = new ArrayList<>(lines);
         var changed = false;
 
@@ -149,6 +162,7 @@ public class MessageMigrationService {
         changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "specify-plugin", defaults.errorSpecifyPluginMessage());
         changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "specify-command", defaults.errorSpecifyCommandMessage());
         changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "paper-plugin", defaults.errorPaperPluginMessage());
+        changed |= addMissingMessageEntry(updatedLines, ERROR_SECTION, "dependency-cycle", bulkDefaults.dependencyCycleMessage());
         changed |= addMissingNestedMessageEntry(updatedLines, ERROR_SECTION, USAGE_SECTION, "command", defaults.errorUsageCommandMessage());
         changed |= addMissingNestedMessageEntry(updatedLines, ERROR_SECTION, USAGE_SECTION, "description", defaults.errorUsageDescriptionMessage());
         changed |= addMissingNestedMessageEntry(updatedLines, ERROR_SECTION, USAGE_SECTION, USAGE_SECTION, defaults.errorUsageUsageMessage());
@@ -156,8 +170,10 @@ public class MessageMigrationService {
         changed |= addMissingMessageEntry(updatedLines, "load", "missing-dependencies", defaults.missingDependenciesMessage());
         changed |= addMissingMessageEntry(updatedLines, "reload", "blocked-dependents", defaults.reloadBlockedDependentsMessage());
         changed |= addMissingMessageEntry(updatedLines, "reload", "confirm-all", defaults.reloadConfirmAllMessage());
+        changed |= addMissingMessageEntry(updatedLines, "reload", "summary", bulkDefaults.reloadSummaryMessage());
         changed |= addMissingMessageEntry(updatedLines, "restart", "blocked-dependents", defaults.restartBlockedDependentsMessage());
         changed |= addMissingMessageEntry(updatedLines, "restart", "confirm-all", defaults.restartConfirmAllMessage());
+        changed |= addMissingMessageEntry(updatedLines, "restart", "summary", bulkDefaults.restartSummaryMessage());
 
         return changed ? updatedLines : null;
     }
@@ -289,5 +305,10 @@ public class MessageMigrationService {
                                    String restartBlockedDependentsMessage,
                                    String reloadConfirmAllMessage,
                                    String restartConfirmAllMessage) {
+    }
+
+    private record BulkMessageDefaults(String dependencyCycleMessage,
+                                       String reloadSummaryMessage,
+                                       String restartSummaryMessage) {
     }
 }

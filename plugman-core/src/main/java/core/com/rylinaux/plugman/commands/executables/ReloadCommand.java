@@ -81,6 +81,11 @@ public class ReloadCommand extends CascadingPluginCommand {
     }
 
     @Override
+    protected String allSummaryMessage() {
+        return "reload.summary";
+    }
+
+    @Override
     protected String pluginSuccessMessage() {
         return "reload.reloaded";
     }

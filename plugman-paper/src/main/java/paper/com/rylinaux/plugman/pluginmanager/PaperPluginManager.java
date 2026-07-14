@@ -997,8 +997,9 @@ public class PaperPluginManager extends BasePluginManager {
         var out = unloadWithPaper(plugin);
         if (!out.second().success()) return out.second();
 
-        closeClassLoader(plugin);
         cleanupPaperPluginManager(plugin);
+        reportUnloadLeaks(plugin);
+        closeClassLoader(plugin);
         System.gc();
 
         return new PluginResult(true, "unload.unloaded");

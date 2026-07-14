@@ -32,6 +32,7 @@ enable:
   enabled: '&9{0} has been enabled.'
   failed: '&c{0} could not be enabled. Check the server log for the plugin error.'
 error:
+  dependency-cycle: '&cDependency cycle detected: {0}'
   ignored: '&cPlugMan is configured to ignore that plugin.'
   invalid-plugin: '&cThat is not a valid plugin.'
   no-permission: '&cYou do not have permission to do this.'
@@ -88,6 +89,7 @@ lookup:
   found: '&9/{0} is registered to {1}.'
   not-found: '&cCommand "/{0}" not registered in any plugin.yml'
 reload:
+  summary: '&9Reloaded {0} plugins in {1} seconds (&c{2} failed&9, &e{3} skipped&9).'
   all: '&9All plugins have been reloaded.'
   all-failed: '&cSome plugins failed to reload: {0}'
   blocked-dependents: '&cCould not reload {0}; active plugins depend on it: {1}. Reload or stop those plugins first, or restart the server.'
@@ -101,6 +103,7 @@ reloadmode:
   invalid: '&cInvalid dependent reload mode: {0}. Use ALL, REQUIRED_ONLY, or OFF.'
   save-failed: '&cCould not save dependent reload mode. Check the server log.'
 restart:
+  summary: '&9Restarted {0} plugins in {1} seconds (&c{2} failed&9, &e{3} skipped&9).'
   all: '&9All plugins have been restarted.'
   all-failed: '&cSome plugins failed to restart: {0}'
   blocked-dependents: '&cCould not restart {0}; active plugins depend on it: {1}. Restart or stop those plugins first, or restart the server.'

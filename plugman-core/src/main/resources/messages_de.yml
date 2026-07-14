@@ -32,6 +32,7 @@ enable:
   enabled: '&9{0} wurde aktiviert.'
   failed: '&c{0} konnte nicht aktiviert werden. Prüfe den Server-Log für den Plugin-Fehler.'
 error:
+  dependency-cycle: '&cAbhaengigkeitszyklus erkannt: {0}'
   ignored: '&cPlugMan ist darauf konfiguriert, dieses Plugin zu ignorieren.'
   invalid-plugin: '&cDies ist kein gültiges Plugin.'
   no-permission: '&cDu hast hierzu keine Berechtigung.'
@@ -88,6 +89,7 @@ lookup:
   found: '&9/{0} ist bei {1} registriert.'
   not-found: '&cDer Befehl "/{0}" ist in keiner plugin.yml registriert.'
 reload:
+  summary: '&9{0} Plugins wurden in {1} Sekunden neu geladen (&c{2} fehlgeschlagen&9, &e{3} uebersprungen&9).'
   all: '&9Alle Plugins wurden neu geladen.'
   all-failed: '&cEinige Plugins konnten nicht neu geladen werden: {0}'
   blocked-dependents: '&c{0} konnte nicht neu geladen werden; aktive Plugins hängen davon ab: {1}. Lade oder stoppe diese Plugins zuerst, oder starte den Server neu.'
@@ -101,6 +103,7 @@ reloadmode:
   invalid: '&cUngültiger Dependent-Reload-Modus: {0}. Nutze ALL, REQUIRED_ONLY oder OFF.'
   save-failed: '&cDependent-Reload-Modus konnte nicht gespeichert werden. Prüfe den Server-Log.'
 restart:
+  summary: '&9{0} Plugins wurden in {1} Sekunden neu gestartet (&c{2} fehlgeschlagen&9, &e{3} uebersprungen&9).'
   all: '&9Alle Plugins wurden neu gestartet.'
   confirm-all: '&cDas Neustarten von {0} Plugins kann den Server abstürzen lassen oder instabil machen. Führe &e/plugman restart all {1}&c aus, um zu bestätigen.'
   blocked-dependents: '&c{0} konnte nicht neu gestartet werden; aktive Plugins hängen davon ab: {1}. Starte oder stoppe diese Plugins zuerst, oder starte den Server neu.'

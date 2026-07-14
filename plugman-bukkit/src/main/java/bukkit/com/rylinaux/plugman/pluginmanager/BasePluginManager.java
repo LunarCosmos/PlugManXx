@@ -40,6 +40,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.event.Event;
+import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.RegisteredListener;
 import org.jetbrains.annotations.ApiStatus;
@@ -50,10 +51,14 @@ import java.io.IOException;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarFile;
 import java.util.logging.Level;
@@ -151,6 +156,137 @@ public abstract class BasePluginManager implements PluginManager {
     private void clearClassLoaderField(ClassLoader classLoader, String fieldName) throws IllegalAccessException {
         if (FieldAccessor.getField(classLoader.getClass(), fieldName) == null) return;
         FieldAccessor.setValue(fieldName, classLoader, null);
+    }
+
+    /**
+     * Reports server registrations that still reference an unloaded plugin.
+     */
+    protected void reportUnloadLeaks(Plugin plugin) {
+        var pluginHandle = plugin.<org.bukkit.plugin.Plugin>getHandle();
+        var pluginLoader = pluginHandle.getClass().getClassLoader();
+        var leaks = new LinkedHashMap<String, List<String>>();
+
+        addLeakCategory(leaks, "tasks", collectTaskLeaks(pluginHandle));
+        addLeakCategory(leaks, "services", collectServiceLeaks(pluginHandle));
+        addLeakCategory(leaks, "listeners", collectListenerLeaks(pluginHandle));
+        addLeakCategory(leaks, "commands", collectCommandLeaks(pluginHandle, pluginLoader));
+        addLeakCategory(leaks, "threads", collectThreadLeaks(pluginLoader));
+
+        if (leaks.isEmpty()) return;
+
+        var logger = PlugManBukkit.getInstance().getLogger();
+        logger.warning("[UnloadLeakDetector] " + plugin.getName()
+                + " still has references after unload; its old classloader may not be garbage-collected.");
+        leaks.forEach((category, details) -> logger.warning("[UnloadLeakDetector] " + plugin.getName() + " "
+                + category + " (" + details.size() + "): " + summarizeLeakDetails(details)));
+    }
+
+    private List<String> collectTaskLeaks(org.bukkit.plugin.Plugin plugin) {
+        try {
+            var tasks = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+            Bukkit.getScheduler().getPendingTasks().stream()
+                    .filter(task -> task.getOwner() == plugin)
+                    .map(task -> "#" + task.getTaskId() + " pending")
+                    .forEach(tasks::add);
+            Bukkit.getScheduler().getActiveWorkers().stream()
+                    .filter(worker -> worker.getOwner() == plugin)
+                    .map(worker -> "#" + worker.getTaskId() + " active on " + worker.getThread().getName())
+                    .forEach(tasks::add);
+            return List.copyOf(tasks);
+        } catch (RuntimeException | LinkageError exception) {
+            logLeakCheckFailure("tasks", exception);
+            return List.of();
+        }
+    }
+
+    private List<String> collectServiceLeaks(org.bukkit.plugin.Plugin plugin) {
+        try {
+            return Bukkit.getServicesManager().getRegistrations(plugin).stream()
+                    .map(registration -> registration.getService().getName() + " -> "
+                            + registration.getProvider().getClass().getName())
+                    .toList();
+        } catch (RuntimeException | LinkageError exception) {
+            logLeakCheckFailure("services", exception);
+            return List.of();
+        }
+    }
+
+    private List<String> collectListenerLeaks(org.bukkit.plugin.Plugin plugin) {
+        try {
+            var listeners = new ArrayList<String>();
+            for (var handlerList : HandlerList.getHandlerLists()) {
+                for (var registration : handlerList.getRegisteredListeners()) {
+                    if (registration.getPlugin() == plugin) {
+                        listeners.add(registration.getListener().getClass().getName());
+                    }
+                }
+            }
+            return listeners.stream().distinct().sorted().toList();
+        } catch (RuntimeException | LinkageError exception) {
+            logLeakCheckFailure("listeners", exception);
+            return List.of();
+        }
+    }
+
+    private List<String> collectCommandLeaks(org.bukkit.plugin.Plugin plugin, ClassLoader pluginLoader) {
+        try {
+            var knownCommands = getKnownCommands();
+            if (knownCommands == null) return List.of();
+
+            var pluginPrefix = plugin.getName().toLowerCase(Locale.ROOT) + ":";
+            return knownCommands.asMap().entrySet().stream()
+                    .filter(entry -> commandReferencesPlugin(entry.getKey(), entry.getValue().getHandle(),
+                            plugin, pluginLoader, pluginPrefix))
+                    .map(Map.Entry::getKey)
+                    .sorted(String.CASE_INSENSITIVE_ORDER)
+                    .toList();
+        } catch (RuntimeException | LinkageError exception) {
+            logLeakCheckFailure("commands", exception);
+            return List.of();
+        }
+    }
+
+    private boolean commandReferencesPlugin(String key,
+                                            Object command,
+                                            org.bukkit.plugin.Plugin plugin,
+                                            ClassLoader pluginLoader,
+                                            String pluginPrefix) {
+        if (key.toLowerCase(Locale.ROOT).startsWith(pluginPrefix)) return true;
+        if (command instanceof PluginCommand pluginCommand && pluginCommand.getPlugin() == plugin) return true;
+        return command != null && command.getClass().getClassLoader() == pluginLoader;
+    }
+
+    private List<String> collectThreadLeaks(ClassLoader pluginLoader) {
+        try {
+            var threads = new ArrayList<String>();
+            for (var thread : Thread.getAllStackTraces().keySet()) {
+                if (!thread.isAlive()) continue;
+                if (thread.getClass().getClassLoader() != pluginLoader
+                        && thread.getContextClassLoader() != pluginLoader) continue;
+                threads.add(thread.getName() + " [" + thread.getState() + "]");
+            }
+            return threads.stream().distinct().sorted().toList();
+        } catch (RuntimeException | LinkageError exception) {
+            logLeakCheckFailure("threads", exception);
+            return List.of();
+        }
+    }
+
+    private void addLeakCategory(Map<String, List<String>> leaks, String category, Collection<String> details) {
+        if (!details.isEmpty()) leaks.put(category, List.copyOf(details));
+    }
+
+    private String summarizeLeakDetails(List<String> details) {
+        var visibleDetails = details.stream().limit(10).toList();
+        var summary = String.join(", ", visibleDetails);
+        return details.size() > visibleDetails.size()
+                ? summary + " (and " + (details.size() - visibleDetails.size()) + " more)"
+                : summary;
+    }
+
+    private void logLeakCheckFailure(String category, Throwable throwable) {
+        PlugManBukkit.getInstance().getLogger().log(Level.FINE,
+                "[UnloadLeakDetector] Could not inspect " + category, throwable);
     }
 
     /**

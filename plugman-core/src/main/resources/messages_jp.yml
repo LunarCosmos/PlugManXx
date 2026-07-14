@@ -32,6 +32,7 @@ enable:
   enabled: '&9{0} を有効化しました。'
   failed: '&c{0} を有効化できませんでした。プラグインエラーはサーバーログを確認してください。'
 error:
+  dependency-cycle: '&cDependency cycle detected: {0}'
   ignored: '&cPlugMan はそのプラグインを無視するよう設定されています。'
   invalid-plugin: '&c有効なプラグインではありません。'
   no-permission: '&cこの操作を行う権限がありません。'
@@ -87,6 +88,7 @@ lookup:
   found: '&9/{0} は {1} に登録されています。'
   not-found: '&cコマンド "/{0}" はどの plugin.yml にも登録されていません。'
 reload:
+  summary: '&9Reloaded {0} plugins in {1} seconds (&c{2} failed&9, &e{3} skipped&9).'
   all: '&9すべてのプラグインをリロードしました。'
   all-failed: '&c一部のプラグインのリロードに失敗しました: {0}'
   blocked-dependents: '&c{0} をリロードできませんでした。依存している有効なプラグインがあります: {1}。先にそれらをリロードまたは停止するか、サーバーを再起動してください。'
@@ -98,6 +100,7 @@ reloadmode:
   invalid: '&c無効な依存リロードモードです: {0}。ALL、REQUIRED_ONLY、OFF のいずれかを使用してください。'
   save-failed: '&c依存リロードモードを保存できませんでした。サーバーログを確認してください。'
 restart:
+  summary: '&9Restarted {0} plugins in {1} seconds (&c{2} failed&9, &e{3} skipped&9).'
   all: '&9すべてのプラグインを再起動しました。'
   all-failed: '&c一部のプラグインの再起動に失敗しました: {0}'
   blocked-dependents: '&c{0} を再起動できませんでした。依存している有効なプラグインがあります: {1}。先にそれらを再起動または停止するか、サーバーを再起動してください。'

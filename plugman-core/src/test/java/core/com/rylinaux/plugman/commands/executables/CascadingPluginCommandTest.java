@@ -16,11 +16,12 @@ class CascadingPluginCommandTest {
         var softDependency = new TestPlugin("SoftDependency", List.of(), List.of());
         var plugin = new TestPlugin("Plugin", List.of("Dependency"), List.of("SoftDependency"));
 
-        var order = CascadingPluginCommand.createLoadOrder(
+        var plan = CascadingPluginCommand.createDependencyPlan(
                 List.of(plugin, dependency, softDependency, plugin), true);
 
         assertEquals(List.of("Dependency", "SoftDependency", "Plugin"),
-                order.stream().map(Plugin::getName).toList());
+                plan.loadOrder().stream().map(Plugin::getName).toList());
+        assertEquals(List.of(), plan.cycles());
     }
 
     @Test
@@ -28,12 +29,42 @@ class CascadingPluginCommandTest {
         var softDependency = new TestPlugin("SoftDependency", List.of(), List.of());
         var plugin = new TestPlugin("Plugin", List.of(), List.of("SoftDependency"));
 
-        var order = CascadingPluginCommand.createLoadOrder(List.of(plugin, softDependency), false);
+        var plan = CascadingPluginCommand.createDependencyPlan(List.of(plugin, softDependency), false);
 
-        assertEquals(List.of("Plugin", "SoftDependency"), order.stream().map(Plugin::getName).toList());
+        assertEquals(List.of("Plugin", "SoftDependency"),
+                plan.loadOrder().stream().map(Plugin::getName).toList());
     }
 
-    private record TestPlugin(String name, List<String> depend, List<String> softDepend) implements Plugin {
+    @Test
+    void resolvesDependenciesThroughProvidedNames() {
+        var provider = new TestPlugin("Provider", List.of(), List.of(), List.of("LegacyApi"));
+        var plugin = new TestPlugin("Plugin", List.of("LegacyApi"), List.of());
+
+        var plan = CascadingPluginCommand.createDependencyPlan(List.of(plugin, provider), false);
+
+        assertEquals(List.of("Provider", "Plugin"),
+                plan.loadOrder().stream().map(Plugin::getName).toList());
+    }
+
+    @Test
+    void reportsDependencyCycles() {
+        var first = new TestPlugin("First", List.of("Second"), List.of());
+        var second = new TestPlugin("Second", List.of("First"), List.of());
+
+        var plan = CascadingPluginCommand.createDependencyPlan(List.of(first, second), false);
+
+        assertEquals(List.of("First -> Second -> First"), plan.cycles());
+        assertEquals(2, plan.loadOrder().size());
+    }
+
+    private record TestPlugin(String name,
+                              List<String> depend,
+                              List<String> softDepend,
+                              List<String> provides) implements Plugin {
+        private TestPlugin(String name, List<String> depend, List<String> softDepend) {
+            this(name, depend, softDepend, List.of());
+        }
+
         @Override
         public String getName() {
             return name;
@@ -57,6 +88,11 @@ class CascadingPluginCommandTest {
         @Override
         public List<String> getSoftDepend() {
             return softDepend;
+        }
+
+        @Override
+        public List<String> getProvides() {
+            return provides;
         }
 
         @Override

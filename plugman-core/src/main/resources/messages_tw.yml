@@ -32,6 +32,7 @@ enable:
   enabled: '&9{0} 已啟用。'
   failed: '&c{0} 無法啟用。請查看伺服器記錄中的外掛錯誤。'
 error:
+  dependency-cycle: '&cDependency cycle detected: {0}'
   ignored: '&cPlugMan 已設定為忽略該外掛。'
   invalid-plugin: '&c這不是有效的外掛。'
   no-permission: '&c你沒有權限執行此操作。'
@@ -87,6 +88,7 @@ lookup:
   found: '&9/{0} 已註冊到 {1}。'
   not-found: '&c指令 "/{0}" 未在任何 plugin.yml 中註冊。'
 reload:
+  summary: '&9Reloaded {0} plugins in {1} seconds (&c{2} failed&9, &e{3} skipped&9).'
   all: '&9所有外掛已重新載入。'
   all-failed: '&c部分外掛重新載入失敗: {0}'
   blocked-dependents: '&c無法重新載入 {0}; 有啟用中的外掛依賴它: {1}。請先重新載入或停止那些外掛，或重新啟動伺服器。'
@@ -98,6 +100,7 @@ reloadmode:
   invalid: '&c無效的依賴重載模式: {0}。請使用 ALL、REQUIRED_ONLY 或 OFF。'
   save-failed: '&c無法儲存依賴重載模式。請檢查伺服器記錄。'
 restart:
+  summary: '&9Restarted {0} plugins in {1} seconds (&c{2} failed&9, &e{3} skipped&9).'
   all: '&9所有外掛已重新啟動。'
   all-failed: '&c部分外掛重新啟動失敗: {0}'
   blocked-dependents: '&c無法重新啟動 {0}; 有啟用中的外掛依賴它: {1}。請先重新啟動或停止那些外掛，或重新啟動伺服器。'

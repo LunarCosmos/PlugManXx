@@ -81,6 +81,11 @@ public class RestartCommand extends CascadingPluginCommand {
     }
 
     @Override
+    protected String allSummaryMessage() {
+        return "restart.summary";
+    }
+
+    @Override
     protected String pluginSuccessMessage() {
         return "restart.restarted";
     }

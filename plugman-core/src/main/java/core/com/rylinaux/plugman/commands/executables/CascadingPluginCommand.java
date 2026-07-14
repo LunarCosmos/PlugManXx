@@ -35,6 +35,7 @@ import core.com.rylinaux.plugman.services.ServiceRegistry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -78,6 +79,8 @@ abstract class CascadingPluginCommand extends AbstractCommand {
 
     protected abstract String allFailedMessage();
 
+    protected abstract String allSummaryMessage();
+
     protected abstract String pluginSuccessMessage();
 
     protected boolean requiresAllConfirmation() {
@@ -89,21 +92,30 @@ abstract class CascadingPluginCommand extends AbstractCommand {
     }
 
     private void runAllPlugins(CommandSender sender, String[] args) {
-        var plugins = getPluginManager().getPlugins().stream().filter(plugin ->
+        var managedPlugins = getPluginManager().getPlugins().stream().filter(plugin ->
                 plugin != null && !getPluginManager().isIgnored(plugin)).toList();
+        var plugins = managedPlugins.stream().filter(Plugin::isEnabled).toList();
+        var skippedPlugins = managedPlugins.size() - plugins.size();
 
         if (requiresConfirmation(args, plugins.size())) {
             sender.sendMessage(allConfirmationMessage(), plugins.size(), CONFIRM_ARGUMENT);
             return;
         }
 
+        var startedAt = System.nanoTime();
         var includeSoftDependencies = get(PlugManConfigurationManager.class).getPlugManConfig().shouldReloadSoftDependents();
-        var loadOrder = createLoadOrder(plugins, includeSoftDependencies);
+        var dependencyPlan = createDependencyPlan(plugins, includeSoftDependencies);
+        var loadOrder = dependencyPlan.loadOrder();
         var unloadOrder = new ArrayList<>(loadOrder);
         Collections.reverse(unloadOrder);
 
+        for (var cycle : dependencyPlan.cycles()) {
+            sender.sendMessage("error.dependency-cycle", cycle);
+        }
+
         var unloadedPlugins = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
         var failedPlugins = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+        var successfulPlugins = 0;
 
         getPluginManager().beginCommandUpdateBatch();
         try {
@@ -125,6 +137,7 @@ abstract class CascadingPluginCommand extends AbstractCommand {
 
                 var result = getPluginManager().load(plugin);
                 if (result.success()) {
+                    successfulPlugins++;
                     sender.sendMessage(pluginSuccessMessage(), plugin.getName());
                     continue;
                 }
@@ -140,49 +153,70 @@ abstract class CascadingPluginCommand extends AbstractCommand {
 
         if (failedPlugins.isEmpty()) {
             sender.sendMessage(allSuccessMessage());
-            return;
+        } else {
+            sender.sendMessage(allFailedMessage(), String.join(", ", failedPlugins));
         }
 
-        sender.sendMessage(allFailedMessage(), String.join(", ", failedPlugins));
+        var elapsedSeconds = (System.nanoTime() - startedAt) / 1_000_000_000.0;
+        sender.sendMessage(allSummaryMessage(), successfulPlugins,
+                String.format(Locale.ROOT, "%.2f", elapsedSeconds), failedPlugins.size(), skippedPlugins);
     }
 
-    static List<Plugin> createLoadOrder(List<Plugin> plugins, boolean includeSoftDependencies) {
+    static DependencyPlan createDependencyPlan(List<Plugin> plugins, boolean includeSoftDependencies) {
         var pluginsByName = new TreeMap<String, Plugin>(String.CASE_INSENSITIVE_ORDER);
         for (var plugin : plugins) pluginsByName.put(plugin.getName(), plugin);
-
-        var loadOrder = new ArrayList<Plugin>();
-        var visiting = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
-        var visited = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
-
         for (var plugin : plugins) {
-            visitDependencies(plugin, pluginsByName, includeSoftDependencies, visiting, visited, loadOrder);
+            if (plugin.getProvides() == null) continue;
+            for (var providedName : plugin.getProvides()) {
+                if (providedName != null) pluginsByName.putIfAbsent(providedName, plugin);
+            }
         }
 
-        return loadOrder;
+        var loadOrder = new ArrayList<Plugin>();
+        var states = new TreeMap<String, VisitState>(String.CASE_INSENSITIVE_ORDER);
+        var path = new ArrayList<Plugin>();
+        var cycles = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+
+        for (var plugin : plugins) {
+            visitDependencies(plugin, pluginsByName, includeSoftDependencies, states, path, cycles, loadOrder);
+        }
+
+        return new DependencyPlan(loadOrder, new ArrayList<>(cycles));
     }
 
     private static void visitDependencies(Plugin plugin,
                                           Map<String, Plugin> pluginsByName,
                                           boolean includeSoftDependencies,
-                                          Set<String> visiting,
-                                          Set<String> visited,
+                                          Map<String, VisitState> states,
+                                          List<Plugin> path,
+                                          Set<String> cycles,
                                           List<Plugin> loadOrder) {
-        if (visited.contains(plugin.getName()) || !visiting.add(plugin.getName())) return;
-
-        visitDependencies(plugin.getDepend(), pluginsByName, includeSoftDependencies, visiting, visited, loadOrder);
-        if (includeSoftDependencies) {
-            visitDependencies(plugin.getSoftDepend(), pluginsByName, true, visiting, visited, loadOrder);
+        var state = states.get(plugin.getName());
+        if (state == VisitState.VISITED) return;
+        if (state == VisitState.VISITING) {
+            addDependencyCycle(plugin, path, cycles);
+            return;
         }
 
-        visiting.remove(plugin.getName());
-        if (visited.add(plugin.getName())) loadOrder.add(plugin);
+        states.put(plugin.getName(), VisitState.VISITING);
+        path.add(plugin);
+
+        visitDependencies(plugin.getDepend(), pluginsByName, includeSoftDependencies, states, path, cycles, loadOrder);
+        if (includeSoftDependencies) {
+            visitDependencies(plugin.getSoftDepend(), pluginsByName, true, states, path, cycles, loadOrder);
+        }
+
+        path.remove(path.size() - 1);
+        states.put(plugin.getName(), VisitState.VISITED);
+        loadOrder.add(plugin);
     }
 
     private static void visitDependencies(List<String> dependencyNames,
                                           Map<String, Plugin> pluginsByName,
                                           boolean includeSoftDependencies,
-                                          Set<String> visiting,
-                                          Set<String> visited,
+                                          Map<String, VisitState> states,
+                                          List<Plugin> path,
+                                          Set<String> cycles,
                                           List<Plugin> loadOrder) {
         if (dependencyNames == null) return;
 
@@ -190,8 +224,33 @@ abstract class CascadingPluginCommand extends AbstractCommand {
             if (dependencyName == null) continue;
             var dependency = pluginsByName.get(dependencyName);
             if (dependency == null) continue;
-            visitDependencies(dependency, pluginsByName, includeSoftDependencies, visiting, visited, loadOrder);
+            visitDependencies(dependency, pluginsByName, includeSoftDependencies, states, path, cycles, loadOrder);
         }
+    }
+
+    private static void addDependencyCycle(Plugin repeatedPlugin, List<Plugin> path, Set<String> cycles) {
+        var cycleStart = 0;
+        while (cycleStart < path.size()
+                && !path.get(cycleStart).getName().equalsIgnoreCase(repeatedPlugin.getName())) {
+            cycleStart++;
+        }
+
+        var cycle = new ArrayList<String>();
+        for (var index = cycleStart; index < path.size(); index++) cycle.add(path.get(index).getName());
+        cycle.add(repeatedPlugin.getName());
+        cycles.add(String.join(" -> ", cycle));
+    }
+
+    record DependencyPlan(List<Plugin> loadOrder, List<String> cycles) {
+        DependencyPlan {
+            loadOrder = List.copyOf(loadOrder);
+            cycles = List.copyOf(cycles);
+        }
+    }
+
+    private enum VisitState {
+        VISITING,
+        VISITED
     }
 
     private boolean requiresConfirmation(String[] args, int pluginCount) {
