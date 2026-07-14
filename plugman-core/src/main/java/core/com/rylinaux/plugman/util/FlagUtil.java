@@ -30,6 +30,7 @@ import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -66,7 +67,9 @@ public class FlagUtil {
         var flags = new HashSet<Character>();
 
         for (var argument : args) {
-            if (argument != null && argument.length() == 2 && argument.charAt(0) == '-') {
+            if (argument == null) continue;
+
+            if (argument.length() == 2 && argument.charAt(0) == '-') {
                 var flag = Character.toLowerCase(argument.charAt(1));
                 if (supported.contains(flag)) {
                     flags.add(flag);
@@ -77,10 +80,19 @@ public class FlagUtil {
             arguments.add(argument);
         }
 
-        return new ParsedArguments(arguments.toArray(String[]::new), Set.copyOf(flags));
+        return new ParsedArguments(arguments, flags);
     }
 
-    public record ParsedArguments(String[] arguments, Set<Character> flags) {
+    public record ParsedArguments(List<String> arguments, Set<Character> flags) {
+        public ParsedArguments {
+            arguments = List.copyOf(arguments);
+            flags = Set.copyOf(flags);
+        }
+
+        public String[] argumentArray() {
+            return arguments.toArray(String[]::new);
+        }
+
         public boolean hasFlag(char flag) {
             return flags.contains(Character.toLowerCase(flag));
         }

@@ -89,7 +89,7 @@ public class CheckCommand extends AbstractCommand {
     @Override
     public void execute(CommandSender sender, String label, String[] args) {
         var parsedArguments = FlagUtil.parse(args, 'f');
-        args = parsedArguments.arguments();
+        args = parsedArguments.argumentArray();
 
         if (!validateArguments(label, args, 2)) return;
 
@@ -169,7 +169,7 @@ public class CheckCommand extends AbstractCommand {
             return;
         }
 
-        var pluginName = StringUtil.consolidateStrings(args, 1).replaceAll(" ", "+");
+        var pluginName = StringUtil.consolidateStrings(args, 1).replace(' ', '+');
 
         sender.sendMessage(("check.header"));
 

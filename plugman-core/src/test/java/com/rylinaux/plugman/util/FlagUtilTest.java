@@ -16,7 +16,7 @@ class FlagUtilTest {
         var parsed = FlagUtil.parse(original, 'f');
 
         assertTrue(parsed.hasFlag('f'));
-        assertArrayEquals(new String[]{"check", "Example Plugin"}, parsed.arguments());
+        assertArrayEquals(new String[]{"check", "Example Plugin"}, parsed.argumentArray());
         assertArrayEquals(new String[]{"check", "Example Plugin", "-F"}, original);
     }
 
@@ -25,6 +25,6 @@ class FlagUtilTest {
         var parsed = FlagUtil.parse(new String[]{"list", "-x"}, 'v');
 
         assertFalse(parsed.hasFlag('v'));
-        assertArrayEquals(new String[]{"list", "-x"}, parsed.arguments());
+        assertArrayEquals(new String[]{"list", "-x"}, parsed.argumentArray());
     }
 }
