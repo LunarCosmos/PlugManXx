@@ -33,8 +33,11 @@ import core.com.rylinaux.plugman.plugins.Plugin;
 import core.com.rylinaux.plugman.services.ServiceRegistry;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 abstract class CascadingPluginCommand extends AbstractCommand {
@@ -94,14 +97,41 @@ abstract class CascadingPluginCommand extends AbstractCommand {
             return;
         }
 
-        var failedPlugins = new ArrayList<String>();
+        var includeSoftDependencies = get(PlugManConfigurationManager.class).getPlugManConfig().shouldReloadSoftDependents();
+        var loadOrder = createLoadOrder(plugins, includeSoftDependencies);
+        var unloadOrder = new ArrayList<>(loadOrder);
+        Collections.reverse(unloadOrder);
+
+        var unloadedPlugins = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+        var failedPlugins = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
 
         getPluginManager().beginCommandUpdateBatch();
         try {
-            for (var plugin : plugins) {
-                var success = runPluginWithCommandBatch(sender, plugin);
+            for (var plugin : unloadOrder) {
+                var result = getPluginManager().unload(plugin);
+                if (result.success()) {
+                    unloadedPlugins.add(plugin.getName());
+                    continue;
+                }
 
-                if (success) continue;
+                sender.sendMessage(result.messageId(), result.messageArgs().length == 0
+                        ? new Object[]{plugin.getName()}
+                        : result.messageArgs());
+                failedPlugins.add(plugin.getName());
+            }
+
+            for (var plugin : loadOrder) {
+                if (!unloadedPlugins.contains(plugin.getName())) continue;
+
+                var result = getPluginManager().load(plugin);
+                if (result.success()) {
+                    sender.sendMessage(pluginSuccessMessage(), plugin.getName());
+                    continue;
+                }
+
+                sender.sendMessage(result.messageId(), result.messageArgs().length == 0
+                        ? new Object[]{plugin.getName()}
+                        : result.messageArgs());
                 failedPlugins.add(plugin.getName());
             }
         } finally {
@@ -114,6 +144,54 @@ abstract class CascadingPluginCommand extends AbstractCommand {
         }
 
         sender.sendMessage(allFailedMessage(), String.join(", ", failedPlugins));
+    }
+
+    static List<Plugin> createLoadOrder(List<Plugin> plugins, boolean includeSoftDependencies) {
+        var pluginsByName = new TreeMap<String, Plugin>(String.CASE_INSENSITIVE_ORDER);
+        for (var plugin : plugins) pluginsByName.put(plugin.getName(), plugin);
+
+        var loadOrder = new ArrayList<Plugin>();
+        var visiting = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+        var visited = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+
+        for (var plugin : plugins) {
+            visitDependencies(plugin, pluginsByName, includeSoftDependencies, visiting, visited, loadOrder);
+        }
+
+        return loadOrder;
+    }
+
+    private static void visitDependencies(Plugin plugin,
+                                          Map<String, Plugin> pluginsByName,
+                                          boolean includeSoftDependencies,
+                                          Set<String> visiting,
+                                          Set<String> visited,
+                                          List<Plugin> loadOrder) {
+        if (visited.contains(plugin.getName()) || !visiting.add(plugin.getName())) return;
+
+        visitDependencies(plugin.getDepend(), pluginsByName, includeSoftDependencies, visiting, visited, loadOrder);
+        if (includeSoftDependencies) {
+            visitDependencies(plugin.getSoftDepend(), pluginsByName, true, visiting, visited, loadOrder);
+        }
+
+        visiting.remove(plugin.getName());
+        if (visited.add(plugin.getName())) loadOrder.add(plugin);
+    }
+
+    private static void visitDependencies(List<String> dependencyNames,
+                                          Map<String, Plugin> pluginsByName,
+                                          boolean includeSoftDependencies,
+                                          Set<String> visiting,
+                                          Set<String> visited,
+                                          List<Plugin> loadOrder) {
+        if (dependencyNames == null) return;
+
+        for (var dependencyName : dependencyNames) {
+            if (dependencyName == null) continue;
+            var dependency = pluginsByName.get(dependencyName);
+            if (dependency == null) continue;
+            visitDependencies(dependency, pluginsByName, includeSoftDependencies, visiting, visited, loadOrder);
+        }
     }
 
     private boolean requiresConfirmation(String[] args, int pluginCount) {

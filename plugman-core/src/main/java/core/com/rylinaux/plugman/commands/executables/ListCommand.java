@@ -31,6 +31,7 @@ import core.com.rylinaux.plugman.commands.AbstractCommand;
 import core.com.rylinaux.plugman.commands.CommandSender;
 import core.com.rylinaux.plugman.plugins.Plugin;
 import core.com.rylinaux.plugman.services.ServiceRegistry;
+import core.com.rylinaux.plugman.util.FlagUtil;
 import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
@@ -86,7 +87,7 @@ public class ListCommand extends AbstractCommand {
      */
     @Override
     public void execute(CommandSender sender, String label, String[] args) {
-        var includeVersions = core.com.rylinaux.plugman.util.FlagUtil.hasFlag(args, 'v');
+        var includeVersions = FlagUtil.parse(args, 'v').hasFlag('v');
 
         var formatFunction = new PluginStringFunction(includeVersions);
         var paperPlugins = new ArrayList<String>();
