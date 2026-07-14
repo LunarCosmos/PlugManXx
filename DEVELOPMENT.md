@@ -37,36 +37,74 @@ Paper uses different JARs for its public API and its internal server implementat
 
 The public API is normally stored in the local Maven repository:
 
+Windows:
+
 ```text
 %USERPROFILE%\.m2\repository\io\papermc\paper\paper-api\<version>\paper-api-<version>.jar
 ```
 
-This JAR contains supported types such as events, lifecycle API interfaces, command APIs, plugin metadata interfaces, and general Bukkit/Paper API classes. Search all cached Paper API versions with PowerShell:
+Linux:
+
+```text
+~/.m2/repository/io/papermc/paper/paper-api/<version>/paper-api-<version>.jar
+```
+
+This JAR contains supported types such as events, lifecycle API interfaces, command APIs, plugin metadata interfaces, and general Bukkit/Paper API classes.
+
+Search all cached Paper API versions on Windows with PowerShell:
 
 ```powershell
 Get-ChildItem "$env:USERPROFILE\.m2\repository\io\papermc\paper\paper-api" -Recurse -Filter "*.jar"
+```
+
+Search them on Linux:
+
+```bash
+find "$HOME/.m2/repository/io/papermc/paper/paper-api" -type f -name '*.jar'
 ```
 
 #### Paper Server Internals
 
 PlugManX reload support also uses Paper implementation classes that are not included in `paper-api`. The Paper launcher usually creates the full runtime JAR inside the server directory:
 
+Windows:
+
 ```text
 <server>\versions\<version>\paper-<version>.jar
 ```
 
-For example:
+Linux:
+
+```text
+<server>/versions/<version>/paper-<version>.jar
+```
+
+For example on Windows:
 
 ```text
 versions\26.2\paper-26.2.jar
+```
+
+On Linux:
+
+```text
+versions/26.2/paper-26.2.jar
 ```
 
 Use this generated runtime JAR for provider storage, plugin manager implementation, lifecycle internals, CraftBukkit, and NMS inspection. The small Paper launcher JAR in the server root may only bootstrap or patch the server and may not contain the final runtime classes.
 
 Find possible runtime JARs from the server root with:
 
+Windows PowerShell:
+
 ```powershell
 Get-ChildItem -Recurse -Filter "paper-*.jar"
+```
+
+Linux:
+
+```bash
+find . -type f -name 'paper-*.jar'
 ```
 
 Common package locations are:
@@ -88,11 +126,21 @@ Common package locations are:
 
 List matching classes before guessing a package or nested class name:
 
+Windows PowerShell:
+
 ```powershell
 jar tf .\versions\26.2\paper-26.2.jar | Select-String "FileProviderSource|ProviderStorage|RecipeMap"
 ```
 
+Linux:
+
+```bash
+jar tf ./versions/26.2/paper-26.2.jar | grep -E 'FileProviderSource|ProviderStorage|RecipeMap'
+```
+
 Use `javap` from the same JDK that runs or builds the server to inspect fields, method signatures, and bytecode:
+
+Windows PowerShell:
 
 ```powershell
 & "$env:JAVA_HOME\bin\javap.exe" -classpath .\versions\26.2\paper-26.2.jar -p `
@@ -102,16 +150,35 @@ Use `javap` from the same JDK that runs or builds the server to inspect fields, 
   net.minecraft.world.item.crafting.RecipeManager
 ```
 
+Linux:
+
+```bash
+"$JAVA_HOME/bin/javap" -classpath ./versions/26.2/paper-26.2.jar -p \
+  io.papermc.paper.plugin.provider.source.FileProviderSource
+
+"$JAVA_HOME/bin/javap" -classpath ./versions/26.2/paper-26.2.jar -p -c \
+  net.minecraft.world.item.crafting.RecipeManager
+```
+
 Useful `javap` options:
 
 - `-p` shows private and package-private members.
 - `-c` shows method bytecode and reveals which internal method is actually called.
 - `-s` shows JVM descriptors, which helps distinguish overloaded methods.
 
-For nested classes, use the exact name returned by `jar tf`, including `$`, and quote it in PowerShell:
+For nested classes, use the exact name returned by `jar tf`, including `$`, and quote it in the shell:
+
+Windows PowerShell:
 
 ```powershell
 & "$env:JAVA_HOME\bin\javap.exe" -classpath .\versions\26.2\paper-26.2.jar -p `
+  'io.papermc.paper.plugin.provider.type.paper.PaperPluginParent$PaperServerPluginProvider'
+```
+
+Linux:
+
+```bash
+"$JAVA_HOME/bin/javap" -classpath ./versions/26.2/paper-26.2.jar -p \
   'io.papermc.paper.plugin.provider.type.paper.PaperPluginParent$PaperServerPluginProvider'
 ```
 
@@ -165,6 +232,14 @@ After unload, check that the unload leak detector reports no remaining tasks, se
 ## Verification
 
 Run the complete reactor build after maintenance changes:
+
+Windows PowerShell:
+
+```powershell
+mvn.cmd clean package "-Dlicense.skipUpdateLicense=true"
+```
+
+Linux:
 
 ```bash
 mvn clean package -Dlicense.skipUpdateLicense=true
