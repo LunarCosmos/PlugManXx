@@ -26,6 +26,7 @@ package core.com.rylinaux.plugman.commands.executables;
  * #L%
  */
 
+import core.com.rylinaux.plugman.PluginResult;
 import core.com.rylinaux.plugman.commands.AbstractCommand;
 import core.com.rylinaux.plugman.commands.CommandSender;
 import core.com.rylinaux.plugman.config.PlugManConfigurationManager;
@@ -105,61 +106,86 @@ abstract class CascadingPluginCommand extends AbstractCommand {
         var startedAt = System.nanoTime();
         var includeSoftDependencies = get(PlugManConfigurationManager.class).getPlugManConfig().shouldReloadSoftDependents();
         var dependencyPlan = createDependencyPlan(plugins, includeSoftDependencies);
-        var loadOrder = dependencyPlan.loadOrder();
+        dependencyPlan.cycles().forEach(cycle -> sender.sendMessage("error.dependency-cycle", cycle));
+        var result = executeBulkOperation(sender, dependencyPlan.loadOrder());
+        sendBulkResult(sender, result, skippedPlugins, startedAt);
+    }
+
+    private BulkOperationResult executeBulkOperation(CommandSender sender, List<Plugin> loadOrder) {
         var unloadOrder = new ArrayList<>(loadOrder);
         Collections.reverse(unloadOrder);
-
-        for (var cycle : dependencyPlan.cycles()) {
-            sender.sendMessage("error.dependency-cycle", cycle);
-        }
-
         var unloadedPlugins = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
         var failedPlugins = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
         var successfulPlugins = 0;
 
         getPluginManager().beginCommandUpdateBatch();
         try {
-            for (var plugin : unloadOrder) {
-                var result = getPluginManager().unload(plugin);
-                if (result.success()) {
-                    unloadedPlugins.add(plugin.getName());
-                    continue;
-                }
-
-                sender.sendMessage(result.messageId(), result.messageArgs().length == 0
-                        ? new Object[]{plugin.getName()}
-                        : result.messageArgs());
-                failedPlugins.add(plugin.getName());
-            }
-
-            for (var plugin : loadOrder) {
-                if (!unloadedPlugins.contains(plugin.getName())) continue;
-
-                var result = getPluginManager().load(plugin);
-                if (result.success()) {
-                    successfulPlugins++;
-                    sender.sendMessage(pluginSuccessMessage(), plugin.getName());
-                    continue;
-                }
-
-                sender.sendMessage(result.messageId(), result.messageArgs().length == 0
-                        ? new Object[]{plugin.getName()}
-                        : result.messageArgs());
-                failedPlugins.add(plugin.getName());
-            }
+            unloadPlugins(sender, unloadOrder, unloadedPlugins, failedPlugins);
+            successfulPlugins = loadPlugins(sender, loadOrder, unloadedPlugins, failedPlugins);
         } finally {
             getPluginManager().endCommandUpdateBatch();
         }
 
-        if (failedPlugins.isEmpty()) {
+        return new BulkOperationResult(successfulPlugins, failedPlugins);
+    }
+
+    private void unloadPlugins(CommandSender sender,
+                               List<Plugin> unloadOrder,
+                               Set<String> unloadedPlugins,
+                               Set<String> failedPlugins) {
+        for (var plugin : unloadOrder) {
+            var result = getPluginManager().unload(plugin);
+            if (result.success()) {
+                unloadedPlugins.add(plugin.getName());
+                continue;
+            }
+
+            sendOperationFailure(sender, plugin, result);
+            failedPlugins.add(plugin.getName());
+        }
+    }
+
+    private int loadPlugins(CommandSender sender,
+                            List<Plugin> loadOrder,
+                            Set<String> unloadedPlugins,
+                            Set<String> failedPlugins) {
+        var successfulPlugins = 0;
+        for (var plugin : loadOrder) {
+            if (!unloadedPlugins.contains(plugin.getName())) continue;
+
+            var result = getPluginManager().load(plugin);
+            if (result.success()) {
+                successfulPlugins++;
+                sender.sendMessage(pluginSuccessMessage(), plugin.getName());
+                continue;
+            }
+
+            sendOperationFailure(sender, plugin, result);
+            failedPlugins.add(plugin.getName());
+        }
+        return successfulPlugins;
+    }
+
+    private void sendOperationFailure(CommandSender sender, Plugin plugin, PluginResult result) {
+        var messageArgs = result.messageArgs();
+        sender.sendMessage(result.messageId(), messageArgs.length == 0
+                ? new Object[]{plugin.getName()}
+                : messageArgs);
+    }
+
+    private void sendBulkResult(CommandSender sender,
+                                BulkOperationResult result,
+                                int skippedPlugins,
+                                long startedAt) {
+        if (result.failedPlugins().isEmpty()) {
             sender.sendMessage(allSuccessMessage());
         } else {
-            sender.sendMessage(allFailedMessage(), String.join(", ", failedPlugins));
+            sender.sendMessage(allFailedMessage(), String.join(", ", result.failedPlugins()));
         }
 
         var elapsedSeconds = (System.nanoTime() - startedAt) / 1_000_000_000.0;
-        sender.sendMessage(allSummaryMessage(), successfulPlugins,
-                String.format(Locale.ROOT, "%.2f", elapsedSeconds), failedPlugins.size(), skippedPlugins);
+        sender.sendMessage(allSummaryMessage(), result.successfulPlugins(),
+                String.format(Locale.ROOT, "%.2f", elapsedSeconds), result.failedPlugins().size(), skippedPlugins);
     }
 
     static DependencyPlan createDependencyPlan(List<Plugin> plugins, boolean includeSoftDependencies) {
@@ -245,6 +271,14 @@ abstract class CascadingPluginCommand extends AbstractCommand {
         DependencyPlan {
             loadOrder = List.copyOf(loadOrder);
             cycles = List.copyOf(cycles);
+        }
+    }
+
+    private record BulkOperationResult(int successfulPlugins, Set<String> failedPlugins) {
+        private BulkOperationResult {
+            var sortedFailures = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+            sortedFailures.addAll(failedPlugins);
+            failedPlugins = Collections.unmodifiableSet(sortedFailures);
         }
     }
 

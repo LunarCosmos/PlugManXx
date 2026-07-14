@@ -136,6 +136,8 @@ Current version is managed by the `plugman.version` property in the parent POM.
 
 ## Developers
 
+Maintenance instructions for adding messages, finding Paper API classes, and updating Paper reload compatibility are documented in [DEVELOPMENT.md](DEVELOPMENT.md).
+
 How to include PlugMan with Maven:
 
 ```xml
