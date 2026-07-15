@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # The plugman-paper module depends on the paper-nms remapped artifact.
+      # Per the README, the parent POM must be installed and paper-nms must be
+      # initialized once before the full reactor build can resolve it.
+      - name: Install parent POM
+        run: mvn -B --no-transfer-progress -N install
+
+      - name: Initialize paper-nms
+        run: mvn -B --no-transfer-progress paper-nms:init
+        working-directory: plugman-paper
+
+      - name: Build
+        run: mvn -B --no-transfer-progress -e clean install
+
+      - name: Upload build artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlugManX
+          path: |
+            plugman-assembly/target/*.jar
+            !plugman-assembly/target/original-*.jar
+          if-no-files-found: error
