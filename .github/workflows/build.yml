@@ -27,16 +27,6 @@ jobs:
           java-version: '21'
           cache: maven
 
-      # The plugman-paper module depends on the paper-nms remapped artifact.
-      # Per the README, the parent POM must be installed and paper-nms must be
-      # initialized once before the full reactor build can resolve it.
-      - name: Install parent POM
-        run: mvn -B --no-transfer-progress -N install
-
-      - name: Initialize paper-nms
-        run: mvn -B --no-transfer-progress paper-nms:init
-        working-directory: plugman-paper
-
       - name: Build
         run: mvn -B --no-transfer-progress -e clean install
 
